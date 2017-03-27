@@ -1,0 +1,10 @@
+#!/usr/bin/env gosh
+;; (define (program-name)(car (command-line)))
+;; (define command-line-arguments-sexp '(cdr (command-line)))
+(define (command-line-arguments)(cdr (cdr (command-line))))
+;; (define (cons-alist key datum alist)(cons (cons key datum) alist))
+;; (define (eval1 expr)(eval expr (interaction-environment)))
+;; (define (command-line-arguments)(eval2 command-line-arguments-sexp))
+(add-load-path ".")
+(load (car (cdr (command-line))))
+;; (include "schscript.scm")
