@@ -5,12 +5,15 @@
 ## Language
 
 関数定義  
+
     (define-cps 関数 ^(仮引数 ・・・) 処理)  
 
 関数適用
+
     関数 実引数 ・・・ ^(変数 ・・・)  
 
 Scheme機能呼び出し
+
     (lambda ^(仮引数) 処理)
 
 ## Usage
