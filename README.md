@@ -37,9 +37,13 @@ Scheme機能呼び出し
 
 ## Requirement
 
-Schemeの処理系が必要です。
+* Mac OS X  
+OS X 10.9.5 で動作を確認しています．
+他のバージョンやLinuxでも若干の修正によって動作すると思います．
+
+* Scheme  
 Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5), Guile (Ver. 2.2.0)で動作を確認しています。
-他のバージョンや他のScheme処理系でも、若干の修正によって動作するかもしれません。
+他のバージョンや他のScheme処理系でも、若干の修正によって動作すると思います．
 
 サンプルコード min-div.sch の場合、インタプリタ方式ではGauche、コンパイラ方式ではGambitが最速でした。
 ただし、これらが一般のコードについても最速であることを保証するものではありません。
@@ -47,7 +51,17 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 ## Usage
 
-    $ chez/script.sh sch-script.scm min-div.sch 13
+* インタプリタによるスクリプトの実行  
+    書式$ 処理系/run.sh sch-script.scm スクリプト パラメータ
+    例$ gauche/run.sh sch-script.scm min-div.sch 13
+
+* インタプリタのコンパイル  
+    書式$ 処理系/compile.sh sch-script.scm
+    例$ gambit/compile.sh sch-script.scm
+
+* コンパイル済みインタプリタによるスクリプトの実行
+    書式$ 処理系/sch-script スクリプト パラメータ
+    例$ gambit/sch-script min-div.sch 13
 
 ## Installation
 

@@ -1,5 +1,0 @@
-(define cmdargs (cdr (command-line)))
-(define (command-line-arguments)(cdr cmdargs))
-;; (display (command-line-arguments))(newline)
-(include "chez/common.scm")
-(load (car cmdargs))

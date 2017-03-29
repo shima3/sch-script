@@ -179,5 +179,5 @@
     (else (cons-alist pars pars env))))
 
 ;; コマンド引数を与えてインタプリタを呼び出す。
-(interpret (command-line-arguments))
-;; (display (command-line-arguments))(newline)
+(define (main-proc cmd . args)
+  (interpret args))
