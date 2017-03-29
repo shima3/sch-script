@@ -54,16 +54,19 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 * インタプリタによるスクリプトの実行
 
     書式$ 処理系/run.sh sch-script.scm スクリプト パラメータ
+    
     例$ gauche/run.sh sch-script.scm min-div.sch 13
 
 * インタプリタのコンパイル
 
     書式$ 処理系/compile.sh sch-script.scm
+    
     例$ gambit/compile.sh sch-script.scm
 
 * コンパイル済みインタプリタによるスクリプトの実行
 
     書式$ 処理系/sch-script スクリプト パラメータ
+    
     例$ gambit/sch-script min-div.sch 13
 
 ## Installation
