@@ -9,15 +9,30 @@
     )
   )
 
-;; built-in functions を定義する．
-(define cps-env
-  '(
-     (exit lambda args
-       (if (pair? args)
-	 (let ((value (car args)))
-	   (if (number? value)(exit value))))
-       (exit 0))
-     ))
+;; built-in functions を定義する大域変数用ハッシュ表
+;; (define cps-env (make-eqv-hashtable))
+(define cps-env (make-hash-table))
+
+;; 大域変数 var の値を返す。
+(define (get-global-var var)
+;;  (hash-table-get cps-env var var))
+  (hash-table-ref/default cps-env var var))
+;;  (hashtable-ref cps-env var var))
+
+;; 項 term を値とする変数 var を定義する．
+(define (set-global-var var term)
+;;  (hash-table-put! cps-env var term))
+  (hash-table-set! cps-env var term))
+;;  (hashtable-set! cps-env var term))
+  ;; (set! cps-env (cons-alist var term cps-env)))
+
+(set-global-var 'cps-exit
+  '(lambda args
+     (if (pair? args)
+       (let ((value (car args)))
+	 (if (number? value)(exit value))))
+     (exit 0))
+  )
 
 ;; ユーザによって定義された cps-main を最初に呼び出す．
 (define entry-point 'cps-main)
@@ -48,7 +63,7 @@
 	(if (interpret-sexp (read port))
 	  (loop3)))))
   (let loop2
-      ((app (cons entry-point (cons (cdr args) 'exit))))
+      ((app (cons entry-point (cons (cdr args) 'cps-exit))))
     (if (pair? app)(loop2 (step-app app))))
 )
 
@@ -62,25 +77,25 @@
 ;; コマンド cmd，引数 args を解釈し，実行する．
 (define (interpret-command cmd args)
   (case cmd
-    ((define-cps)(interpret-define (car args)(cdr args)))))
-
-;; 項 term を値とする変数 var を定義する．
-(define (interpret-define var term)
-  (set! cps-env (cons-alist var term cps-env)))
+    ((define-cps)(set-global-var (car args)(cdr args)))))
 
 ;; 関数適用 app を一段階実行する．
 (define (step-app app)
 ;;  (println "app=" app)
   (let ((func (car app))(args (cdr app)))
-    (set! func (get-var func cps-env))
+    ;; (set! func (get-var func cps-env))
+    (set! func (get-global-var func))
     (cond
       ((pair? func)
 	(let ((first (car func))(rest (cdr func)))
 	  (case first
-	    ((^)(step-abs (car rest)(cdr rest) args '()))
-	    ((lambda)(apply-func func (pickup-cont-arg args cps-env)))
+	    ((^)(step-abs (car rest)(cdr rest) args '( )))
+	    ((lambda)
+	      (apply-func func (pickup-cont-arg args)))
+	      ;; (apply-func func (pickup-cont-arg args cps-env)))
 	    ((quote)(list args (car rest)))
-	    (else (substitute-term func cps-env args))
+	    (else (substitute-term func '( ) args))
+	      ;; bug? (substitute-term func cps-env args))
 	    )))
       ((not (pair-terms? args))(list args func))
       (else
@@ -98,7 +113,7 @@
   (if (pair? pars)
     (if (pair-terms? args)
       (step-abs (cdr pars) app (cdr args)(cons-alist (car pars)(car args) env))
-      (list args (cons '^ (cons pars (substitute-term app env '())))))
+      (list args (cons '^ (cons pars (substitute-term app env '( ))))))
     (begin
       (if (pair-terms? args)
 	(set! args (cons '^ (cons '($0)(cons '$0 args)))))
@@ -115,16 +130,21 @@
 
 ;; 環境 env における変数 var の値を返す。
 (define (get-var var env)
-  (let ((kv (assoc var env)))
+  (let ((kv (assq var env))) ; assoc -> assq 2017/3/28
     (if kv (cdr kv) var)))
 
 ;; 通常の順序の引数リストを継続第一にして返す。
 ;; 通常の順序 (引数1 引数2 … . 継続) -> 継続第一 (継続 引数1 引数2 …)
-(define (pickup-cont-arg args env)
+;; このとき大域変数を値に置き換える。
+;; (define (pickup-cont-arg args env)
+(define (pickup-cont-arg args)
   (if (pair-terms? args)
-    (let ((cargs (pickup-cont-arg (cdr args) env)))
-      (cons (car cargs)(cons (get-var (car args) env)(cdr cargs))))
-    (list (get-var args env))
+    ;; (let ((cargs (pickup-cont-arg (cdr args) env)))
+    (let ((cargs (pickup-cont-arg (cdr args))))
+      (cons (car cargs)(cons (get-global-var (car args))(cdr cargs))))
+      ;; (cons (car cargs)(cons (get-var (car args) env)(cdr cargs))))
+    (list (get-global-var args))
+    ;; (list (get-var args env))
   ))
 
 ;; 関数 func に継続第一の引数リスト cargs を適用する。
@@ -141,7 +161,7 @@
 	(case first
 	  ((^)(substitute-abs (car rest)(cdr rest) env defcont))
 	  ((lambda quote) term)
-	  (else (cons (substitute-term first env '())
+	  (else (cons (substitute-term first env '( ))
 		  (substitute-term rest env defcont))))))
     ((null? term) defcont)
     (else (get-var term env))))

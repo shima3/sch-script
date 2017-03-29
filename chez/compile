@@ -1,0 +1,10 @@
+#!/bin/bash
+base=${1%.*}
+cat <<EOF > chez/tmp.scm
+(include "chez/common.scm")
+(include "$1")
+EOF
+chez --script chez/compile.scm chez/tmp.scm chez/$base.so
+chmod -x chez/$base.so
+echo "chez --script chez/$base.so \$*" > chez/$base
+chmod +x chez/$base

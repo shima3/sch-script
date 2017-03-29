@@ -1,0 +1,8 @@
+#!/bin/bash
+EXPR=$(cat <<- 'EOF'
+(define (command-line-arguments)(cdr (command-line)))
+(include "gambit/common.scm")
+EOF
+)
+gsc -exe -cc-options "-O3" -ld-options "-Wl,-no_compact_unwind" -prelude "$EXPR" -o gambit/${1%.*} $*
+# v4.8.4 gsc -exe -cc-options "-O5" -prelude "$EXPR" -o gambit/${1%.*} $*

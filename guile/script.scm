@@ -3,4 +3,5 @@
 ;; (define (eval1 expr)(eval expr (interaction-environment)))
 ;; (include "schscript.scm")
 ;; (add-to-load-path ".")
+(include "common.scm")
 (load-from-path (car (cdr (command-line))))

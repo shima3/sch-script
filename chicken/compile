@@ -1,0 +1,1 @@
+csc -O5 -prologue chicken/prologue.scm -o chicken/${1%.*} $*

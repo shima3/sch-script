@@ -10,6 +10,7 @@
 ;; (exit 0)
 (define org-exit exit)
 (define exit-code 0)
+(include "common.scm")
 (call-with-values
     (lambda ( )
       (with-code-coverage

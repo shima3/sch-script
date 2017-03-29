@@ -6,7 +6,7 @@ fi
 infos=( )
 for test in $tests
 do
-    /bin/bash $test guile/coverage.sh
+    /bin/bash $test guile/coverage
     fname_ext=${test##*/}
     info=coverage/${fname_ext%.*}.info
     lcov -e guile/lcov.info "$PWD/*" -o $info
