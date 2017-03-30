@@ -76,7 +76,7 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
   Scheme Hat Script用インタプリタ
 * min-div.sch  
   Scheme Hat Scriptのサンプルコード  
-  2以上の最小の約数を表示する．
+  2以上で最小の約数を表示する．
 * chez/  
   Chez Scheme用スクリプト類
 * chicken/  
