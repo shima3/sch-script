@@ -65,7 +65,7 @@ define-cps は次の書式で関数を定義します。
 
     ^(仮引数列 . 継続仮引数) 関数 引数列
 
-上記のサンプルコードの関数定義 `^(args) println "Hello, World!"` は `^(args . c) println "Hello, World!" . c` の略です。
+上記のサンプルコードの関数定義 `^(args) println "Hello, World!"` は `^(args . c) println "Hello, World!" . c` の継続仮引数と継続引数を省略しています。
 関数 main を呼び出すとき、戻り先が継続仮引数 c に渡され、`println "Hello, World!"` を実行した後、c を呼び出します。
 
 継続引数として関数定義を渡す場合、ピリオドと括弧を省略できます。
