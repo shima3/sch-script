@@ -1,1 +1,1 @@
-chez/run.sh chez/print-args.so $*
+chez/interpret.sh chez/print-args.so $*

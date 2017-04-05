@@ -1,2 +1,2 @@
 #!/bin/bash
-$1 sch-script.scm -e cps-main min-div.sch 13
+$* sch-script.scm -e main sample/min-div.sch 13

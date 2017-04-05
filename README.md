@@ -6,9 +6,11 @@
 
 ラムダ計算はチューリング完全で最も単純な計算モデルの1つであり、関数型プログラミング言語の理論的基礎となっています。
 継続渡しスタイルは例外処理や多重ループからの脱出などの制御構造を表現したり、処理の最適化や並列化のためコンパイラの中間言語として利用されています。
+
 本提案言語は関数型プログラミング言語の学習を目的とし、継続渡しスタイルのラムダ計算を簡潔に記述する記法を用いることによって、最小の文法で最大の表現力を目指しています。
-このminimalismの設計方針、および、継続渡しスタイルが可能である点はSchemeと共通です。
-ただし、Schemeでは直接スタイルを基本とし、必要に応じて継続を取り出すのに対し、提案言語では継続渡しスタイルを基本とし、継続の引数を省略した形として直接スタイル風に見せます。
+このminimalismの設計方針、および、継続渡しスタイルが可能である点はSchemeと同様です。
+ただし、Schemeは直接スタイルを基本とし、必要に応じて継続を取り出すので、継続渡しスタイルが複雑になります。
+提案言語は継続渡しスタイルを簡潔に表現する記法に基づき、直接スタイルは継続の引数を省略した形として表現します。
 
 ## Features
 
@@ -23,17 +25,72 @@
 
 ## Language
 
-関数定義
+次のサンプルコードは Hello, World! を表示します。
 
-    (define-cps 関数 ^(仮引数 ・・・) 処理)  
+    (define-cps main ^(args)
+      println "Hello, World!"
+      )
 
-関数適用
+define-cps は次の書式で関数を定義します。
 
-    関数 実引数 ・・・ ^(変数 ・・・)  
+    (define-cps 関数名 関数定義)
 
-Scheme機能呼び出し
+関数名は１つの変数で、変数は英数字とマイナスからなる文字列です。
+ただし、関数名 main はプログラムを実行したとき、最初に呼び出される関数を示します。
+関数定義は次の書式で基本的な計算を示します。
 
-    (lambda ^(仮引数) 処理)
+    ^(仮引数列 . 継続仮引数) 関数 引数列 . 継続引数
+
+仮引数列は変数の列、継続仮引数は１つの変数です。
+関数と継続引数は１つの項、引数列は項の列です。
+上記のサンプルコードの場合、args が仮引数、println が関数、"Hello, World!" が引数です。
+
+複数の変数は空白で区切ります。
+項は変数または括弧で囲んだ関数定義です。
+継続仮引数または継続引数の前のピリオドの前後には空白が必要です。
+
+仮引数が必要ない場合、次のように記述します。
+
+    ^継続仮引数 関数 引数列 . 継続引数
+
+継続仮引数が必要ない場合、次のように記述します。
+
+    ^( ) 関数 引数列 . 継続引数
+
+引数列が必要ない場合、次のように記述します。
+
+    ^(仮引数列 . 継続仮引数) 関数 . 継続引数
+
+継続引数が継続仮引数と同じ場合、継続引数を次のように省略できます。
+
+    ^(仮引数列 . 継続仮引数) 関数 引数列
+
+上記のサンプルコードの関数定義 ^(args) println "Hello, World!" は ^(args . c) println "Hello, World!" . c の略です。
+関数 main を呼び出すとき、戻り先が継続仮引数 c に渡され、println "Hello, World!" を実行した後、c を呼び出します。
+
+継続引数として関数定義を渡す場合、ピリオドと括弧を省略できます。
+次のサンプルコードは 1 と 2 の和 3 を表示します。
+
+    (define-cps main ^(args)
+      + 1 2 ^(value)
+      println value
+      )
+
+上記の関数定義 ^(args) + 1 2 ^(value) println value は ^(args) + 1 2 . (^(value) println value) のピリオドと括弧を省略しています。
++ 1 2 は 1 と 2 の和 3 を求め、継続引数 ^(value) println value の value に与え、println value は value の値 3 を表示します。
+
+次の書式で Scheme 処理系の機能を利用できます。
+
+    (lambda ^(仮引数列) 処理) 引数列
+
+引数列の値を Scheme 処理系における仮引数列に渡し、Scheme 言語で記述された処理を実行します。
+例えば、上記の + と println は次のように定義できます。
+
+    (define-cps + ^(x y)
+      (lambda (a b)(+ a b)) x y)
+
+    (define-cps println ^(x)
+      (lambda (a)(display a)(newline)) x ^(d)( ))
 
 ## Requirement
 
@@ -53,8 +110,8 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 インタプリタによるスクリプトの実行
 
-    書式$ 処理系/run.sh sch-script.scm スクリプト パラメータ  
-    例$ gauche/run.sh sch-script.scm min-div.sch 13
+    書式$ 処理系/interpret.sh sch-script.scm スクリプト パラメータ  
+    例$ gauche/interpret.sh sch-script.scm sample/min-div.sch 13
 
 インタプリタのコンパイル
 
@@ -64,7 +121,7 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 コンパイル済みインタプリタによるスクリプトの実行
 
     書式$ 処理系/sch-script スクリプト パラメータ  
-    例$ gambit/sch-script min-div.sch 13
+    例$ gambit/sch-script sample/min-div.sch 13
 
 ## Installation
 
@@ -74,7 +131,9 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 * sch-script.scm  
   Scheme Hat Script用インタプリタ
-* min-div.sch  
+* sample/
+  サンプルコード用フォルダ
+** min-div.sch  
   Scheme Hat Scriptのサンプルコード  
   2以上で最小の約数を表示する．
 * chez/  

@@ -9,14 +9,17 @@
     )
   )
 
-;; built-in functions を定義する大域変数用ハッシュ表
+;; 大域変数用ハッシュ表
 ;; (define cps-env (make-eqv-hashtable))
 (define cps-env (make-hash-table))
 
 ;; 大域変数 var の値を返す。
 (define (get-global-var var)
-;;  (hash-table-get cps-env var var))
-  (hash-table-ref/default cps-env var var))
+  (if (symbol? var)
+    ;;  (hash-table-get cps-env var var))
+    (hash-table-ref/default cps-env var var)
+    var)
+  )
 ;;  (hashtable-ref cps-env var var))
 
 ;; 項 term を値とする変数 var を定義する．
@@ -26,16 +29,135 @@
 ;;  (hashtable-set! cps-env var term))
   ;; (set! cps-env (cons-alist var term cps-env)))
 
+;; built-in function の cps-exit
 (set-global-var 'cps-exit
   '(lambda args
      (if (pair? args)
        (let ((value (car args)))
 	 (if (number? value)(exit value))))
-     (exit 0))
+     (exit 0)))
+
+(define loop-flag #t)
+
+(define (interpreter-stop!)
+  (set! loop-flag #f)
   )
 
-;; ユーザによって定義された cps-main を最初に呼び出す．
-(define entry-point 'cps-main)
+(set-global-var 'end
+  `(lambda args
+     (interpreter-stop!)
+     '( )))
+
+(define app-queue-first '( ))
+(define app-queue-last app-queue-first)
+(define app-queue-mutex (make-mutex))
+(define app-queue-condition (make-condition-variable))
+
+(define (app-enqueue! el)
+  ;; (unless (or (null? el)(undefined? el))
+  (if (not (null? el))
+    ;; (println "app-enqueue!=" el)
+    #; (with-locking-mutex app-queue-mutex
+      (lambda ( )
+	(let ((last (cons el '( ))))
+	  (if (null? app-queue-first)
+	    (set! app-queue-first last)
+	    (set-cdr! app-queue-last last))
+	  (set! app-queue-last last)
+    )))
+    (begin
+      (mutex-lock! app-queue-mutex)
+      (let ((last (cons el '( ))))
+	(if (null? app-queue-first)
+	  (set! app-queue-first last)
+	  (set-cdr! app-queue-last last))
+	(set! app-queue-last last)
+	)
+      (mutex-unlock! app-queue-mutex)
+      (condition-variable-signal! app-queue-condition)
+      )
+    ))
+
+(set-global-var 'start
+  '(lambda args
+    (app-enqueue! (car args))
+    '( )))
+
+(define (app-dequeue!)
+  (mutex-lock! app-queue-mutex)
+  (let ((value '( )))
+    (if (not (null? app-queue-first))
+      (begin
+	(set! value (car app-queue-first))
+	(set! app-queue-first (cdr app-queue-first))
+	))
+    (mutex-unlock! app-queue-mutex)
+    value))
+
+(define (app-dequeue/wait!)
+  #; (with-locking-mutex app-queue-mutex
+    (lambda ( )
+      (if (null? app-queue-first)
+	;; (condition-wait app-queue-condition app-queue-mutex)
+	(begin
+	  (mutex-unlock! app-queue-mutex app-queue-condition)
+	  (app-dequeue/wait!)
+	  )
+	(let ((first (car app-queue-first)))
+	  (set! app-queue-first (cdr app-queue-first))
+	  first
+	  )
+	)
+  ))
+  (mutex-lock! app-queue-mutex)
+  (if (null? app-queue-first)
+    (begin
+      (mutex-unlock! app-queue-mutex app-queue-condition)
+      (app-dequeue/wait!)
+      )
+    (let ((first (car app-queue-first)))
+      (set! app-queue-first (cdr app-queue-first))
+      (mutex-unlock! app-queue-mutex)
+      first
+      )
+    )
+  )
+
+(define interpreter-count 0)
+(define interpreter-mutex (make-mutex))
+(define max-interpreter-count 3)
+;; (define interpreter-cond (make-condition-variable))
+
+(define (interpreter-count-add! n)
+  #; (with-locking-mutex interpreter-mutex
+    (lambda ( )
+      (println "interpreter-count=" interpreter-count)
+      (println "n=" n)
+      (set! interpreter-count (+ interpreter-count n))
+      )
+  )
+  (mutex-lock! interpreter-mutex)
+  (set! interpreter-count (+ interpreter-count n))
+  (mutex-unlock! interpreter-mutex)
+  )
+
+;; (define thread-count 0)
+;; (define thread-count-mutex (make-mutex))
+;; (define max-thread-count 4)
+
+#; (define (thread-count-add! n)
+  (with-locking-mutex thread-count-mutex
+    (lambda ( )
+      (set! thread-count (+ thread-count n))
+    )))
+
+;; ユーザによって定義された main を最初に呼び出す．
+(define entry-point 'main)
+
+;; (define duration100ms (make-time 'time-duration 100000000 0))
+;; (define duration100ms 0.1)
+;; (define duration100ms (seconds->time 0.1))
+(define duration100ms (seconds->duration 0.1))
 
 ;; プログラムを解釈し，実行する．
 ;; args：コマンドラインの引数のリスト
@@ -57,15 +179,55 @@
 	       ))
 	    (set! args (cdr args))
 	    (loop))))))
-  (call-with-input-file (car args)
+  (load-sch-script (car args))
+  ;; (println (cons entry-point (cons (cdr args) 'cps-end)))
+  (app-enqueue! (cons entry-point (cons (cdr args) 'end)))
+  (let loop2 ( )
+    ;; ((app (cons entry-point (cons (cdr args) 'cps-exit))))
+    (if (< interpreter-count max-interpreter-count)(interpreter-start!))
+    ;; (if (< thread-count max-thread-count)(interpreter-start!))
+    ;; (thread-sleep! (make-time 'time-duration 100000000 0))
+    ;; (thread-sleep! duration100ms)
+    (sleep duration100ms)
+    ;; (thread-yield!)
+    ;; (thread-sleep! 0.1)
+    ;; (thread-sleep! (make-time 'time-duration 0 1))
+;;    (if (pair? app)(loop2 (step-app app))))
+    (if loop-flag (loop2)))
+  (let loop3 ( )
+    ;; (thread-sleep! (make-time 'time-duration 100000000 0))
+    ;; (thread-sleep! duration100ms)
+    (sleep duration100ms)
+    ;; (thread-yield!)
+    (if (> interpreter-count 0)(loop3))
+    )
+  (exit 0))
+
+(define (load-sch-script filename)
+  (call-with-input-file filename
     (lambda (port)
-      (let loop3 ( )
+      (let loop ( )
 	(if (interpret-sexp (read port))
-	  (loop3)))))
-  (let loop2
-      ((app (cons entry-point (cons (cdr args) 'cps-exit))))
-    (if (pair? app)(loop2 (step-app app))))
-)
+	  (loop))))))
+
+(define (interpreter-start!)
+  (fork-thread
+    (lambda ( )
+      (interpreter-count-add! 1)
+      (let ((timeout (add-duration (current-time) duration100ms)))
+	;; (println timeout)
+	(let loop ((app (app-dequeue!)))
+	  (if (not (null? app))
+	    (begin
+	      ;; (println "app=" app)
+	      (if (time<? (current-time) timeout)
+		(loop (step-app app))
+		(app-enqueue! app))
+	      ))
+	  )
+	)
+      (interpreter-count-add! -1)
+      )))
 
 ;; S式 sexp を解釈し，実行する．
 (define (interpret-sexp sexp)
@@ -98,6 +260,7 @@
 	      ;; bug? (substitute-term func cps-env args))
 	    )))
       ((not (pair-terms? args))(list args func))
+      ((null? func) '( ))
       (else
 	(display "Illegal function error: ")
 	(write app)
@@ -180,4 +343,5 @@
 
 ;; コマンド引数を与えてインタプリタを呼び出す。
 (define (main-proc cmd . args)
-  (interpret args))
+  (interpret args)
+  )

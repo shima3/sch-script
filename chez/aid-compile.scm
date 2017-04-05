@@ -1,4 +1,4 @@
-(include "chez/prologue.scm")
+(include "chez/wrapper.scm")
 (let ((args (command-line-arguments)))
   (let ((src (car args))
 	 (dst (car (cdr args))))

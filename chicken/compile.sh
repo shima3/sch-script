@@ -1,1 +1,10 @@
-csc -O5 -R srfi-69 -postlude '(apply main-proc (cons (program-name)(command-line-arguments)))' -o chicken/${1%.*} $*
+#!/bin/bash
+file_ext=${1##*/}
+base=${file_ext%.*}
+csc -O4 -R srfi-18 -R srfi-69 -prologue chicken/wrapper.scm -postlude '(apply main-proc (cons (program-name)(command-line-arguments)))' -o chicken/$base $*
+# csc -O4 -R srfi-18 -R srfi-69 -epilogue chicken/wrapper.scm -o chicken/$base $*
+# csc -O4 -R srfi-18 -R srfi-69 -prologue chicken/wrapper.scm -epilogue chicken/epilogue.scm -o chicken/$base $*
+# csc -O5 -s chicken/wrapper.scm
+# csc -O5 -R srfi-18 -R srfi-69 -o chicken/$base.so -s $*
+# chmod -x chicken/wrapper.so chicken/$base.so
+# csc -O5 -o chicken/$base chicken/bootstrap.scm

@@ -3,7 +3,7 @@
  (system vm vm))
 (define org-exit exit)
 (define exit-code 0)
-(include "prologue.scm")
+(include "wrapper.scm")
 (let ((args (cdr (command-line))))
   (let ((args2 (cdr args)))
     (load-from-path (car args2))
