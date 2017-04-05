@@ -65,8 +65,8 @@ define-cps は次の書式で関数を定義します。
 
     ^(仮引数列 . 継続仮引数) 関数 引数列
 
-上記のサンプルコードの関数定義 ^(args) println "Hello, World!" は ^(args . c) println "Hello, World!" . c の略です。
-関数 main を呼び出すとき、戻り先が継続仮引数 c に渡され、println "Hello, World!" を実行した後、c を呼び出します。
+上記のサンプルコードの関数定義 `^(args) println "Hello, World!"` は `^(args . c) println "Hello, World!" . c` の略です。
+関数 main を呼び出すとき、戻り先が継続仮引数 c に渡され、`println "Hello, World!"` を実行した後、c を呼び出します。
 
 継続引数として関数定義を渡す場合、ピリオドと括弧を省略できます。
 次のサンプルコードは 1 と 2 の和 3 を表示します。
@@ -76,15 +76,15 @@ define-cps は次の書式で関数を定義します。
       println value
       )
 
-上記の関数定義 ^(args) + 1 2 ^(value) println value は ^(args) + 1 2 . (^(value) println value) のピリオドと括弧を省略しています。
-+ 1 2 は 1 と 2 の和 3 を求め、継続引数 ^(value) println value の value に与え、println value は value の値 3 を表示します。
+上記の関数定義 `^(args) + 1 2 ^(value) println value` は `^(args) + 1 2 . (^(value) println value)` のピリオドと括弧を省略しています。
+`+ 1 2` は 1 と 2 の和 3 を求め、継続引数 `^(value) println value` の value に与え、`println value` は value の値 3 を表示します。
 
 次の書式で Scheme 処理系の機能を利用できます。
 
     (lambda ^(仮引数列) 処理) 引数列
 
 引数列の値を Scheme 処理系における仮引数列に渡し、Scheme 言語で記述された処理を実行します。
-例えば、上記の + と println は次のように定義できます。
+例えば、上記の `+` と `println` は次のように定義できます。
 
     (define-cps + ^(x y)
       (lambda (a b)(+ a b)) x y)
