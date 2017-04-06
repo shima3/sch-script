@@ -24,10 +24,7 @@
 
 ;; 項 term を値とする変数 var を定義する．
 (define (set-global-var var term)
-;;  (hash-table-put! cps-env var term))
   (hash-table-set! cps-env var term))
-;;  (hashtable-set! cps-env var term))
-  ;; (set! cps-env (cons-alist var term cps-env)))
 
 ;; built-in function の cps-exit
 (set-global-var 'cps-exit
@@ -54,17 +51,7 @@
 (define app-queue-condition (make-condition-variable))
 
 (define (app-enqueue! el)
-  ;; (unless (or (null? el)(undefined? el))
   (if (not (null? el))
-    ;; (println "app-enqueue!=" el)
-    #; (with-locking-mutex app-queue-mutex
-      (lambda ( )
-	(let ((last (cons el '( ))))
-	  (if (null? app-queue-first)
-	    (set! app-queue-first last)
-	    (set-cdr! app-queue-last last))
-	  (set! app-queue-last last)
-    )))
     (begin
       (mutex-lock! app-queue-mutex)
       (let ((last (cons el '( ))))
@@ -95,20 +82,6 @@
     value))
 
 (define (app-dequeue/wait!)
-  #; (with-locking-mutex app-queue-mutex
-    (lambda ( )
-      (if (null? app-queue-first)
-	;; (condition-wait app-queue-condition app-queue-mutex)
-	(begin
-	  (mutex-unlock! app-queue-mutex app-queue-condition)
-	  (app-dequeue/wait!)
-	  )
-	(let ((first (car app-queue-first)))
-	  (set! app-queue-first (cdr app-queue-first))
-	  first
-	  )
-	)
-  ))
   (mutex-lock! app-queue-mutex)
   (if (null? app-queue-first)
     (begin
@@ -126,37 +99,16 @@
 (define interpreter-count 0)
 (define interpreter-mutex (make-mutex))
 (define max-interpreter-count 3)
-;; (define interpreter-cond (make-condition-variable))
 
 (define (interpreter-count-add! n)
-  #; (with-locking-mutex interpreter-mutex
-    (lambda ( )
-      (println "interpreter-count=" interpreter-count)
-      (println "n=" n)
-      (set! interpreter-count (+ interpreter-count n))
-      )
-  )
   (mutex-lock! interpreter-mutex)
   (set! interpreter-count (+ interpreter-count n))
   (mutex-unlock! interpreter-mutex)
   )
 
-;; (define thread-count 0)
-;; (define thread-count-mutex (make-mutex))
-;; (define max-thread-count 4)
-
-#; (define (thread-count-add! n)
-  (with-locking-mutex thread-count-mutex
-    (lambda ( )
-      (set! thread-count (+ thread-count n))
-    )))
-
 ;; ユーザによって定義された main を最初に呼び出す．
 (define entry-point 'main)
 
-;; (define duration100ms (make-time 'time-duration 100000000 0))
-;; (define duration100ms 0.1)
-;; (define duration100ms (seconds->time 0.1))
 (define duration100ms (seconds->duration 0.1))
 
 ;; プログラムを解釈し，実行する．
@@ -180,25 +132,13 @@
 	    (set! args (cdr args))
 	    (loop))))))
   (load-sch-script (car args))
-  ;; (println (cons entry-point (cons (cdr args) 'cps-end)))
   (app-enqueue! (cons entry-point (cons (cdr args) 'end)))
   (let loop2 ( )
-    ;; ((app (cons entry-point (cons (cdr args) 'cps-exit))))
     (if (< interpreter-count max-interpreter-count)(interpreter-start!))
-    ;; (if (< thread-count max-thread-count)(interpreter-start!))
-    ;; (thread-sleep! (make-time 'time-duration 100000000 0))
-    ;; (thread-sleep! duration100ms)
     (sleep duration100ms)
-    ;; (thread-yield!)
-    ;; (thread-sleep! 0.1)
-    ;; (thread-sleep! (make-time 'time-duration 0 1))
-;;    (if (pair? app)(loop2 (step-app app))))
     (if loop-flag (loop2)))
   (let loop3 ( )
-    ;; (thread-sleep! (make-time 'time-duration 100000000 0))
-    ;; (thread-sleep! duration100ms)
     (sleep duration100ms)
-    ;; (thread-yield!)
     (if (> interpreter-count 0)(loop3))
     )
   (exit 0))
@@ -215,11 +155,9 @@
     (lambda ( )
       (interpreter-count-add! 1)
       (let ((timeout (add-duration (current-time) duration100ms)))
-	;; (println timeout)
 	(let loop ((app (app-dequeue!)))
 	  (if (not (null? app))
 	    (begin
-	      ;; (println "app=" app)
 	      (if (time<? (current-time) timeout)
 		(loop (step-app app))
 		(app-enqueue! app))
@@ -245,7 +183,6 @@
 (define (step-app app)
 ;;  (println "app=" app)
   (let ((func (car app))(args (cdr app)))
-    ;; (set! func (get-var func cps-env))
     (set! func (get-global-var func))
     (cond
       ((pair? func)
@@ -254,7 +191,6 @@
 	    ((^)(step-abs (car rest)(cdr rest) args '( )))
 	    ((lambda)
 	      (apply-func func (pickup-cont-arg args)))
-	      ;; (apply-func func (pickup-cont-arg args cps-env)))
 	    ((quote)(list args (car rest)))
 	    (else (substitute-term func '( ) args))
 	      ;; bug? (substitute-term func cps-env args))
@@ -302,12 +238,9 @@
 ;; (define (pickup-cont-arg args env)
 (define (pickup-cont-arg args)
   (if (pair-terms? args)
-    ;; (let ((cargs (pickup-cont-arg (cdr args) env)))
     (let ((cargs (pickup-cont-arg (cdr args))))
       (cons (car cargs)(cons (get-global-var (car args))(cdr cargs))))
-      ;; (cons (car cargs)(cons (get-var (car args) env)(cdr cargs))))
     (list (get-global-var args))
-    ;; (list (get-var args env))
   ))
 
 ;; 関数 func に継続第一の引数リスト cargs を適用する。
