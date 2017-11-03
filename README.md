@@ -140,9 +140,9 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
   提案言語のサンプルコード
     * min-div.sch  
       2以上で最小の約数を表示する．
-    * concurrent.sch
+    * concurrent.sch  
       並行処理のサンプル
-    * actor.sch
+    * actor.sch  
       アクターモデルのサンプル
 * chez/
   Chez Scheme用スクリプト類
