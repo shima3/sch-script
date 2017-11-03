@@ -1,3 +1,10 @@
+;; インタプリタの個数
+(define interpreter-count 0)
+;; interpreter-count 用の mutex
+(define interpreter-mutex (make-mutex))
+;; インタプリタの最大数
+(define max-interpreter-count 10)
+
 ;; Scheme処理系依存を吸収するためのユーティリティ関数
 (define (cons-alist key datum alist)(cons (cons key datum) alist))
 (define (eval1 expr)(eval expr (interaction-environment)))
@@ -10,96 +17,295 @@
   )
 
 ;; 大域変数用ハッシュ表
-;; (define cps-env (make-eqv-hashtable))
-(define cps-env (make-hash-table))
+(define cps-env (make-eqv-hashtable))
+;; (define cps-env (make-hash-table)) ;; 2017/7/13 bug 
 
 ;; 大域変数 var の値を返す。
 (define (get-global-var var)
-  (if (symbol? var)
-    ;;  (hash-table-get cps-env var var))
-    (hash-table-ref/default cps-env var var)
-    var)
+  (hash-table-ref/key cps-env var)
   )
-;;  (hashtable-ref cps-env var var))
 
 ;; 項 term を値とする変数 var を定義する．
 (define (set-global-var var term)
   (hash-table-set! cps-env var term))
 
-;; built-in function の cps-exit
-(set-global-var 'cps-exit
-  '(lambda args
-     (if (pair? args)
-       (let ((value (car args)))
-	 (if (number? value)(exit value))))
-     (exit 0)))
-
+;; インタプリタによる式の評価を繰り返すかどうかを示すフラグ
 (define loop-flag #t)
 
+;; インタプリタを停止する．
 (define (interpreter-stop!)
   (set! loop-flag #f)
   )
 
-(set-global-var 'end
-  `(lambda args
-     (interpreter-stop!)
-     '( )))
+;; 終了コード
+(define exit-code 0)
 
-(define app-queue-first '( ))
-(define app-queue-last app-queue-first)
-(define app-queue-mutex (make-mutex))
-(define app-queue-condition (make-condition-variable))
+;; キューを作る
+(define (make-queue)
+  (cons '( ) '( )))
 
-(define (app-enqueue! el)
-  (if (not (null? el))
-    (begin
-      (mutex-lock! app-queue-mutex)
-      (let ((last (cons el '( ))))
-	(if (null? app-queue-first)
-	  (set! app-queue-first last)
-	  (set-cdr! app-queue-last last))
-	(set! app-queue-last last)
-	)
-      (mutex-unlock! app-queue-mutex)
-      (condition-variable-signal! app-queue-condition)
-      )
-    ))
+#|
+キュー queue に要素 el を追加する
+追加して要素数が１の場合，戻り値は #t
+追加して要素数が２つ以上の場合，戻り値は #f
+|#
+(define (enqueue! queue el)
+  (let ((first (car queue))(last (cdr queue))(new-last (cons el '( ))))
+    (if (null? first)
+      (set-car! queue new-last)
+      (set-cdr! last new-last))
+    (set-cdr! queue new-last)
+    (null? first) ; 削除予定
+    )
+  )
 
-(set-global-var 'start
-  '(lambda args
-    (app-enqueue! (car args))
-    '( )))
-
-(define (app-dequeue!)
-  (mutex-lock! app-queue-mutex)
-  (let ((value '( )))
-    (if (not (null? app-queue-first))
+;; キュー queue から要素を取り出す
+(define (dequeue! queue)
+  (let ((first (car queue)))
+    (if (null? first)
+      '( )
       (begin
-	(set! value (car app-queue-first))
-	(set! app-queue-first (cdr app-queue-first))
-	))
-    (mutex-unlock! app-queue-mutex)
-    value))
+	(set-car! queue (cdr first))
+	(car first)))
+    )
+  )
 
-(define (app-dequeue/wait!)
-  (mutex-lock! app-queue-mutex)
-  (if (null? app-queue-first)
-    (begin
-      (mutex-unlock! app-queue-mutex app-queue-condition)
-      (app-dequeue/wait!)
-      )
-    (let ((first (car app-queue-first)))
-      (set! app-queue-first (cdr app-queue-first))
-      (mutex-unlock! app-queue-mutex)
-      first
+;; キュー queue が空かどうか判定する
+(define (queue-empty? queue)
+  (null? (car queue)))
+
+;; キュー queue の要素が１つだけかどうか判定する
+(define (queue-one? queue)
+  (eq? (car queue)(cdr queue)))
+
+;; キュー queue の先頭の値を返す
+(define (queue-peek queue)
+  (let ((first (car queue)))
+    (if (null? first)
+      '( )
+      (car first))))
+
+;; スレッドセーフなキューを作る
+(define (make-mt-queue)
+  (cons (make-mutex)(make-queue)))
+
+#|
+スレッドセーフなキュー queue に要素 el を追加する
+追加して要素数が１の場合，戻り値は #t
+追加して要素数が２つ以上の場合，戻り値は #f
+|#
+(define (mt-enqueue! queue el)
+  (let ((mutex (car queue)))
+    (mutex-lock! mutex)
+    (let ((flag (enqueue! (cdr queue) el)))
+      (mutex-unlock! mutex)
+      flag
       )
     )
   )
 
-(define interpreter-count 0)
-(define interpreter-mutex (make-mutex))
-(define max-interpreter-count 3)
+;; スレッドセーフなキュー queue から要素を取り出す
+(define (mt-dequeue! queue)
+  (let ((mutex (car queue))(el '( )))
+    (mutex-lock! mutex)
+    (set! el (dequeue! (cdr queue)))
+    (mutex-unlock! mutex)
+    el)
+  )
 
+;; スレッドセーフなキュー queue が空かどうか判定する
+(define (mt-queue-empty? queue)
+  (queue-empty? (cdr queue)))
+
+(define (mt-queue-peek queue)
+  (queue-peek (cdr queue)))
+
+;; (define test-queue (make-mt-queue))
+;; (mt-enqueue! test-queue "aho 1")
+;; (mt-enqueue! test-queue "boke 2")
+;; (println (mt-dequeue! test-queue))
+;; (println (mt-dequeue! test-queue))
+
+;; built-in function: make.queue ^(queue)
+;; 空のキューを新たに作り，変数 queue に渡す
+(set-global-var 'make.queue
+  `(lambda args
+     (cons 'quote (make-mt-queue))))
+
+#|
+built-in function: mailboxAdd message ^(isFirst)
+メールボックスにメッセージ message を追加する
+追加する直前にメールボックスが空だった場合、isFirst は #t
+既に他のメッセージがあった場合、isFirst は #f
+|#
+(set-global-var 'mailboxAdd
+  `(lambda (message)
+     (let ([mailbox (actor-mailbox (current-actor))])
+       (let ([mutex (car mailbox)][queue (cdr mailbox)])
+	 (mutex-lock! mutex)
+	 (let ([flag (queue-empty? queue)])
+	   (enqueue! queue message)
+	   (mutex-unlock! mutex)
+	   flag)))))
+
+#|
+built-in function: mailboxRemove ^(isEmpty)
+メールボックスから先頭のメッセージを取り除く
+削除した直後、メールボックスが空になった場合、isEmpty は #t
+他のメッセージが残っていた場合、isEmpty は #f
+|#
+(set-global-var 'mailboxRemove
+  `(lambda ()
+     (let ([mailbox (actor-mailbox (current-actor))])
+       (let ([mutex (car mailbox)][queue (cdr mailbox)])
+	 (mutex-lock! mutex)
+	 (dequeue! queue)
+	 (let ([flag (queue-empty? queue)])
+	   (mutex-unlock! mutex)
+	   flag)))))
+
+;; 現在のアクターを返す
+(define (current-actor)
+  (current-thread-specific)
+  )
+
+;; built-in function: currentActor ^(actor)
+;; 現在のアクターを変数 actor に渡す
+(set-global-var 'currentActor
+  '(lambda ( )(cons 'quote (current-actor))))
+
+;; actor を現在のアクターとして設定する
+(define (current-actor-set! actor)
+  (current-thread-specific-set! actor))
+;;  (thread-specific-set! (current-thread) actor))
+
+;; 計算過程のキュー
+;; 計算過程は関数適用とアクターの組で表現される
+(define app-queue (make-mt-queue))
+
+;; 関数適用 app とアクター actor の組を計算過程のキューに追加する
+(define (app-enqueue! app actor)
+  ;; (println "app-enqueue! 1 " app)
+  (mt-enqueue! app-queue (cons app actor))
+  ;; (println "app-enqueue! 2 " app)
+  )
+
+;; built-in function: start app ^( )
+;; 関数適用 app の計算を開始する
+(set-global-var 'start
+  '(lambda (app)
+     ;; (println "start 1")
+     (app-enqueue! app (current-actor))
+     ;; (println "start 2")
+     '( )))
+
+;; 計算過程のキューから関数適用とアクターの組を取り出す
+(define (app-dequeue!)
+  (mt-dequeue! app-queue))
+
+;; 振舞 behavior を持つアクターを作る
+;; アクターは振舞とメールボックスからなる
+;; メールボックスはキューである
+(define (make-actor behavior)
+  (cons behavior (make-mt-queue)))
+
+;; built-in function: makeActor behavior ^(actor)
+;; 動作 behavior を行うアクターを作り，変数 actor に渡す
+(set-global-var 'makeActor
+  '(lambda (behavior)
+     (cons 'quote (make-actor behavior))))
+
+;; アクター actor の動作を behavior に変更する
+(define (actor-become actor behavior)
+  (set-car! actor behavior))
+
+;; built-in function: actorBecome behavior
+;; 現在のアクターの動作を behavior に変更する
+(set-global-var 'actorBecome
+  '(lambda (behavior)
+     (actor-become (current-actor) behavior)
+     '( )))
+
+;; アクター actor の動作を返す
+(define (actor-behavior actor)
+  (car actor))
+
+;; built-in function: getBehavior ^(behavior)
+;; 現在のアクターのメールボックスを変数 mailbox に渡す
+(set-global-var 'getBehavior
+  '(lambda ( )
+     (actor-behavior (current-actor))))
+
+;; アクター actor のメールボックスを返す
+(define (actor-mailbox actor)
+  (cdr actor))
+
+;; built-in function: getMailbox ^(mailbox)
+;; 現在のアクターのメールボックスを変数 mailbox に渡す
+(set-global-var 'getMailbox
+  '(lambda ( )
+     (actor-mailbox (current-actor))))
+
+;; built-in function: let actor app ^( )
+;; アクター actor に関数適用 app を計算させる
+(set-global-var 'let
+  '(lambda (actor app)
+     (app-enqueue! app (cdr actor))
+     '( )))
+
+;; アクター actor 宛てのメッセージのキューからメッセージを１つ取り出し，actor に実行させる
+(define (actor-respond actor)
+  ;; (display "actor-respond 1 ")(display actor)(newline)
+  (let ([behavior (car actor)][mailbox (cdr actor)])
+    (let ([message (mt-queue-peek mailbox)])
+      ;; (display "actor-respond 2 ")(display message)(newline)
+      (if (not (null? message))
+	(begin
+	  (app-enqueue! (list message behavior) actor)
+	  ;; (display "actor-respond 3 ")(display actor)(newline)
+	  )
+	)))
+  ;; (display "actor-respond 4 ")(display actor)(newline)
+  )
+#; (define (actor-respond actor)
+  (let ((behavior (car actor))(queue (cdr actor)))
+    (let ((message (mt-dequeue! queue)))
+      (if (not (null? message))
+	  (app-enqueue! (list message behavior) actor)
+	)
+      )
+    )
+  )
+
+;; 現在のアクターに次のメッセージを実行させる
+(set-global-var 'actorNext
+  '(lambda ( )
+     ;; (display "actorNext 1")(newline)
+     (let ([actor (current-actor)])
+       (let ([mailbox (cdr actor)])
+	 (mt-dequeue! mailbox)
+	 (if (not (mt-queue-empty? mailbox))
+	     (actor-respond actor))))
+     ;; (display "actorNext 2")(newline)
+     '( )))
+
+;; アクター actor にメッセージ message を送信する
+#; (define (send actor message)
+  ;; (display "send")(newline)
+  ;; (display (cdr (cdr actor)))(newline)
+  (if (mt-enqueue! (cdr actor) message)
+    (actor-respond actor))
+  )
+
+;; built-in function: sendAsync qActor message ^( )
+;; quote つきアクター qActor に非同期メッセージ message を送信する
+#; (set-global-var 'sendAsync
+  '(lambda (qActor message)
+     ;; (display "sendAsync")(display message)(newline)
+     (send (cdr qActor) message)
+     '( )))
+
+;; インタプリタの個数を１つ増やす（スレッドセーフ）
 (define (interpreter-count-add! n)
   (mutex-lock! interpreter-mutex)
   (set! interpreter-count (+ interpreter-count n))
@@ -109,6 +315,7 @@
 ;; ユーザによって定義された main を最初に呼び出す．
 (define entry-point 'main)
 
+;; 0.1秒の時間間隔
 (define duration100ms (seconds->duration 0.1))
 
 ;; プログラムを解釈し，実行する．
@@ -132,17 +339,22 @@
 	    (set! args (cdr args))
 	    (loop))))))
   (load-sch-script (car args))
-  (app-enqueue! (cons entry-point (cons (cdr args) 'end)))
+  ;; (app-enqueue! (cons entry-point (cons (cdr args) '(^() exit 0 . end)))
+  (app-enqueue! (list entry-point (cdr args) '^ '() 'exit 0)
+  ;; (app-enqueue! (list entry-point (cdr args))
+    (make-actor "main"))
   (let loop2 ( )
     (if (< interpreter-count max-interpreter-count)(interpreter-start!))
     (sleep duration100ms)
+    ;; (if (not (mt-queue-empty? app-queue)) (loop2)))
     (if loop-flag (loop2)))
   (let loop3 ( )
     (sleep duration100ms)
     (if (> interpreter-count 0)(loop3))
     )
-  (exit 0))
+  (exit exit-code))
 
+;; sch-script 言語のファイル filename を読み込む
 (define (load-sch-script filename)
   (call-with-input-file filename
     (lambda (port)
@@ -150,19 +362,26 @@
 	(if (interpret-sexp (read port))
 	  (loop))))))
 
+;; インタプリタを開始する
 (define (interpreter-start!)
   (fork-thread
     (lambda ( )
       (interpreter-count-add! 1)
-      (let ((timeout (add-duration (current-time) duration100ms)))
-	(let loop ((app (app-dequeue!)))
-	  (if (not (null? app))
-	    (begin
-	      (if (time<? (current-time) timeout)
-		(loop (step-app app))
-		(app-enqueue! app))
-	      ))
-	  )
+      (let ( (timeout (add-duration (current-time) duration100ms))
+	     (app-actor (app-dequeue!)) )
+	(if (not (null? app-actor))
+	  (let ([actor (cdr app-actor)])
+	    ;; (println "interpreter-start! 1 app-actor=" app-actor)
+	    (current-actor-set! actor)
+	    ;; (println "interpreter-start! 2 app-actor=" app-actor)
+	    (let loop ([app (car app-actor)])
+	      ;; (println "interpreter-start! app=" app)
+	      (if (not (null? app))
+		(if (time<? (current-time) timeout)
+		  (loop (step-app app))
+		  (app-enqueue! app actor)))
+	      )
+	    ))
 	)
       (interpreter-count-add! -1)
       )))
@@ -177,11 +396,10 @@
 ;; コマンド cmd，引数 args を解釈し，実行する．
 (define (interpret-command cmd args)
   (case cmd
-    ((define-cps)(set-global-var (car args)(cdr args)))))
+    ((defineCPS)(set-global-var (car args)(cdr args)))))
 
 ;; 関数適用 app を一段階実行する．
 (define (step-app app)
-;;  (println "app=" app)
   (let ((func (car app))(args (cdr app)))
     (set! func (get-global-var func))
     (cond
@@ -191,11 +409,16 @@
 	    ((^)(step-abs (car rest)(cdr rest) args '( )))
 	    ((lambda)
 	      (apply-func func (pickup-cont-arg args)))
-	    ((quote)(list args (car rest)))
-	    (else (substitute-term func '( ) args))
+	    ((quote)
+	      (list args (car rest)))
+	    (else
+	      (substitute-term func '( ) args))
+	      ;; bug (cons (cons '^ (cons '($0) (cons '$0 func))) args))
 	      ;; bug? (substitute-term func cps-env args))
 	    )))
-      ((not (pair-terms? args))(list args func))
+      ((not (pair-terms? args))
+	;; (println "step-app 2")
+	(list args func))
       ((null? func) '( ))
       (else
 	(display "Illegal function error: ")
@@ -224,7 +447,7 @@
 (define (pair-terms? term)
   (and (pair? term)
     (case (car term)
-      ((^ lambda) #f)
+      ((^ lambda quote) #f)
       (else #t))))
 
 ;; 環境 env における変数 var の値を返す。
@@ -245,6 +468,7 @@
 
 ;; 関数 func に継続第一の引数リスト cargs を適用する。
 (define (apply-func func cargs)
+  ;; (println "apply-func cargs=" cargs)
   (list (car cargs)(apply (eval1 func)(cdr cargs))))
 
 ;; 項 term に含まれる変数を env で対応づけられた値に置き換える。
@@ -256,9 +480,12 @@
       (let ((first (car term))(rest (cdr term)))
 	(case first
 	  ((^)(substitute-abs (car rest)(cdr rest) env defcont))
-	  ((lambda quote) term)
-	  (else (cons (substitute-term first env '( ))
-		  (substitute-term rest env defcont))))))
+	  ((lambda) term)
+	  ((quote) term)
+	  (else
+	    (cons (substitute-term first env '( ))
+	      (substitute-term rest env defcont))
+	    ))))
     ((null? term) defcont)
     (else (get-var term env))))
 
@@ -278,3 +505,22 @@
 (define (main-proc cmd . args)
   (interpret args)
   )
+
+;; ----- built-in functions -----
+
+#|
+end
+式の終端
+|#
+(set-global-var 'end '( ))
+
+#|
+exit code
+スクリプトを終了する
+code: 終了コード
+|#
+(set-global-var 'exit
+  `(^(code)
+     (lambda (code)
+       (set! exit-code code)
+       (interpreter-stop!)) code . end))

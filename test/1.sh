@@ -1,2 +1,2 @@
 #!/bin/bash
-$* sample/print-args.scm a b
+$* scm/print-args.scm a b

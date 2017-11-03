@@ -10,7 +10,8 @@
 本提案言語は関数型プログラミング言語の学習を目的とし、継続渡しスタイルのラムダ計算を簡潔に記述する記法を用いることによって、最小の文法で最大の表現力を目指しています。
 このminimalismの設計方針、および、継続渡しスタイルが可能である点はSchemeと同様です。
 ただし、Schemeは直接スタイルを基本とし、必要に応じて継続を取り出すので、継続渡しスタイルが複雑になります。
-提案言語は継続渡しスタイルを簡潔に表現する記法に基づき、直接スタイルは継続の引数を省略した形として表現します。
+また、同じアルゴリズムであっても直接スタイルと継続渡しスタイルとは別々に扱う必要があります。
+提案言語では直接スタイルは継続渡しスタイルにおける継続の引数を省略した形とみなすので、継続渡しスタイルと統一的に扱うことができます。
 
 ## Features
 
@@ -106,11 +107,19 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 ただし、これらが一般のコードについても最速であることを保証するものではありません。
 例えば、min-div.sch は使用する記憶領域が少ないので、より大きな記憶領域を使用するアプリケーションの場合、ガーベジコレクションの性能によって順位が逆転する可能性があります。
 
+## Installation
+
+次のコマンドを実行してください。
+
+    $ git clone https://github.com/shima3/sch-script
+
 ## Usage
+
+カレントディレクトリを sch-script に変更して以下のコマンドを実行してください。
 
 インタプリタによるスクリプトの実行
 
-    書式$ 処理系/interpret.sh sch-script.scm スクリプト パラメータ  
+    書式$ 処理系/interpret.sh sch-script.scm スクリプト パラメータ・・・
     例$ gauche/interpret.sh sch-script.scm sample/min-div.sch 13
 
 インタプリタのコンパイル
@@ -123,32 +132,31 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
     書式$ 処理系/sch-script スクリプト パラメータ  
     例$ gambit/sch-script sample/min-div.sch 13
 
-## Installation
-
-    $ git clone https://github.com/shima3/sch-script
-
 ## Files
 
-* sch-script.scm  
-  Scheme Hat Script用インタプリタ
+* sch-script.scm
+  提案言語のインタプリタ
 * sample/
-  サンプルコード用フォルダ
+  提案言語のサンプルコード
     * min-div.sch  
-      Scheme Hat Scriptのサンプルコード  
       2以上で最小の約数を表示する．
-* chez/  
+    * concurrent.sch
+      並行処理のサンプル
+    * actor.sch
+      アクターモデルのサンプル
+* chez/
   Chez Scheme用スクリプト類
-* chicken/  
+* chicken/
   Chicken Scheme用スクリプト類
-* gambit/  
+* gambit/
   Gambit Scheme用スクリプト類
-* gauche/  
+* gauche/
   Gauche Scheme用スクリプト類
-* guile/  
+* guile/
   Guile Scheme用スクリプト類
-* test/  
+* test/
   テスト実行用スクリプト類
-* coverage/  
+* coverage/
   カバレッジ計測結果用フォルダ
 
 ## License
