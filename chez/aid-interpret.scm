@@ -1,0 +1,5 @@
+(include "chez/wrapper.scm")
+(let ((args (cdr (command-line))))
+  (load (car args))
+  (apply main-proc args)
+  )
