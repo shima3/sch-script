@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - unnamed - script/guile/coverage.scm</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">script/guile</a> - coverage.scm<span style="font-size: 80%;"> (source / <a href="coverage.scm.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">unnamed</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">17</td>
+            <td class="headerCovTableEntryLo">52.9 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-03-28 00:06:52</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntryHi">-</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span><span class="lineNoCov">          0 : (use-modules</span></a>
+<span class="lineNum">       2 </span>            :  (system vm coverage)
+<span class="lineNum">       3 </span>            :  (system vm vm))
+<span class="lineNum">       4 </span>            : ;; (display (command-line))(newline)
+<span class="lineNum">       5 </span><span class="lineNoCov">          0 : (define cmdargs (cdr (command-line)))</span>
+<span class="lineNum">       6 </span>            : ;; (display cmdargs)(newline)
+<span class="lineNum">       7 </span>            : ;; (display (car (cdr cmdargs)))(newline)
+<span class="lineNum">       8 </span><span class="lineCov">          2 : (define (command-line-arguments)(cdr (cdr cmdargs)))</span>
+<span class="lineNum">       9 </span>            : ;; (display (command-line-arguments))(newline)
+<span class="lineNum">      10 </span>            : ;; (exit 0)
+<span class="lineNum">      11 </span><span class="lineNoCov">          0 : (define org-exit exit)</span>
+<span class="lineNum">      12 </span><span class="lineNoCov">          0 : (define exit-code 0)</span>
+<span class="lineNum">      13 </span>            : (call-with-values
+<span class="lineNum">      14 </span>            :     (lambda ( )
+<span class="lineNum">      15 </span><span class="lineNoCov">          0 :       (with-code-coverage</span>
+<span class="lineNum">      16 </span><span class="lineCov">          2 :        (lambda ( )</span>
+<span class="lineNum">      17 </span><span class="lineCov">          2 :          (call/cc</span>
+<span class="lineNum">      18 </span><span class="lineCov">          2 :           (lambda (cont)</span>
+<span class="lineNum">      19 </span><span class="lineCov">          2 :             (set! exit</span>
+<span class="lineNum">      20 </span><span class="lineCov">          2 :                   (lambda (code)</span>
+<span class="lineNum">      21 </span><span class="lineCov">          1 :                     (set! exit org-exit)</span>
+<span class="lineNum">      22 </span><span class="lineCov">          1 :                     (cont code)))</span>
+<span class="lineNum">      23 </span><span class="lineCov">          2 :             (load-from-path (car (cdr cmdargs)))</span>
+<span class="lineNum">      24 </span>            :             )))))
+<span class="lineNum">      25 </span>            :   (lambda (data result)
+<span class="lineNum">      26 </span><span class="lineNoCov">          0 :     (let ((port (open-output-file (car cmdargs))))</span>
+<span class="lineNum">      27 </span><span class="lineNoCov">          0 :       (coverage-data-&gt;lcov data port)</span>
+<span class="lineNum">      28 </span><span class="lineNoCov">          0 :       (close port)</span>
+<span class="lineNum">      29 </span>            :       )))
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.13</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>
