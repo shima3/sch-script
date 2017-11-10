@@ -1,5 +1,5 @@
-(defineCPS #t ^(x y) x)
-(defineCPS #f ^(x y) y)
+(defineCPS #t ^(a b) a)
+(defineCPS #f ^(a b) b)
 
 #; (defineCPS println ^(value)
   (lambda (value)(display value)(newline)) value ^(dummy)( ))
@@ -7,35 +7,34 @@
 (defineCPS println lambda (value)
   (display value)
   (newline)
-  ())
+  '( ))
 
-(defineCPS < ^(left right) left ^(left) right ^(right)
-  (lambda (left right)(< left right)) left right)
+(defineCPS < ^(a b) a ^(a) b ^(b)
+  (lambda (A B)(< A B)) a b)
 
-(defineCPS = ^(left right) left ^(left) right ^(right)
-  (lambda (left right)(= left right)) left right)
+(defineCPS = ^(a b) a ^(a) b ^(b)
+  (lambda (A B)(= A B)) a b)
 
-(defineCPS + ^(left right) left ^(left) right ^(right)
-  (lambda (left right)(+ left right)) left right)
+(defineCPS + ^(a b) a ^(a) b ^(b)
+  (lambda (A B)(+ A B)) a b)
 
-(defineCPS * ^(left right) left ^(left) right ^(right)
-  (lambda (left right)(* left right)) left right)
+(defineCPS * ^(a b) a ^(a) b ^(b)
+  (lambda (A B)(* A B)) a b)
 
-(defineCPS remainder ^(left right) left ^(left) right ^(right)
-  (lambda (left right)(remainder left right)) left right)
+(defineCPS remainder ^(a b) a ^(a) b ^(b)
+  (lambda (A B)(remainder A B)) a b)
 
-(defineCPS if ^(condition then else) condition ^(condition)
-  condition then else ^(choice)
-  choice)
+(defineCPS ifthenelse ^(condition then else)
+  condition then else)
 
 #; (defineCPS if ^(condition then else) condition ^(condition)
   (lambda (condition then else)(if condition then else)) condition then else
   ^(thenorelse) thenorelse)
 
 (defineCPS find_divisor ^(n d) d ^(d)
-  if (< n (* d d)) n
-  (if (= (remainder n d) 0) d
-    (find_divisor n (+ d 1))))
+  ifthenelse (< n (* d d)) n
+  ( ifthenelse (= (remainder n d) 0) d
+    ( find_divisor n (+ d 1) ) ))
 
 (defineCPS string_to_number ^(str)
   (lambda (str)(string->number str)) str)

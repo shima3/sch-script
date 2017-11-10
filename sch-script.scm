@@ -3,7 +3,7 @@
 ;; interpreter-count 用の mutex
 (define interpreter-mutex (make-mutex))
 ;; インタプリタの最大数
-(define max-interpreter-count 10)
+(define max-interpreter-count 4)
 
 ;; Scheme処理系依存を吸収するためのユーティリティ関数
 (define (cons-alist key datum alist)(cons (cons key datum) alist))
@@ -317,6 +317,23 @@ built-in function: mailboxRemove ^(isEmpty)
 
 ;; 0.1秒の時間間隔
 (define duration100ms (seconds->duration 0.1))
+;; 1秒の時間間隔
+(define duration1s (seconds->duration 1))
+
+(define (step-loop)
+  (let loop ( [app-actor (app-dequeue!)] )
+    (if (not (null? app-actor))
+      (let ( [actor (cdr app-actor)]
+	     [timeout (add-duration (current-time) duration100ms)] )
+	(current-actor-set! actor)
+	;; (println (car app-actor))
+	(let loop2 ( [app (car app-actor)] )
+	  (if (not (null? app))
+	    (if (time<? (current-time) timeout)
+	      (loop2 (step-app app))
+	      (app-enqueue! app actor))))
+	(loop (app-dequeue!)))))
+  )
 
 ;; プログラムを解釈し，実行する．
 ;; args：コマンドラインの引数のリスト
@@ -341,17 +358,16 @@ built-in function: mailboxRemove ^(isEmpty)
   (load-sch-script (car args))
   ;; (app-enqueue! (cons entry-point (cons (cdr args) '(^() exit 0 . end)))
   (app-enqueue! (list entry-point (cdr args) '^ '() 'exit 0)
-  ;; (app-enqueue! (list entry-point (cdr args))
+    ;; (app-enqueue! (list entry-point (cdr args))
     (make-actor "main"))
+  #; (step-loop)
   (let loop2 ( )
-    (if (< interpreter-count max-interpreter-count)(interpreter-start!))
+    #; (if (and (< interpreter-count max-interpreter-count)
+    (not (mt-queue-empty? app-queue)))(interpreter-start!))
+    (if (not (mt-queue-empty? app-queue))(interpreter-start!))
     (sleep duration100ms)
-    ;; (if (not (mt-queue-empty? app-queue)) (loop2)))
-    (if loop-flag (loop2)))
-  (let loop3 ( )
-    (sleep duration100ms)
-    (if (> interpreter-count 0)(loop3))
-    )
+    (if (and (or (> interpreter-count 0)(not (mt-queue-empty? app-queue)))
+	  loop-flag)(loop2)))
   (exit exit-code))
 
 ;; sch-script 言語のファイル filename を読み込む
@@ -367,24 +383,19 @@ built-in function: mailboxRemove ^(isEmpty)
   (fork-thread
     (lambda ( )
       (interpreter-count-add! 1)
-      (let ( (timeout (add-duration (current-time) duration100ms))
-	     (app-actor (app-dequeue!)) )
+      (step-loop)
+      #; (let loop ([app-actor (app-dequeue!)])
 	(if (not (null? app-actor))
-	  (let ([actor (cdr app-actor)])
-	    ;; (println "interpreter-start! 1 app-actor=" app-actor)
+	  (let ([timeout (add-duration (current-time) duration100ms)]
+		 [actor (cdr app-actor)])
 	    (current-actor-set! actor)
-	    ;; (println "interpreter-start! 2 app-actor=" app-actor)
-	    (let loop ([app (car app-actor)])
-	      ;; (println "interpreter-start! app=" app)
+	    (let loop2 ([app (car app-actor)])
 	      (if (not (null? app))
 		(if (time<? (current-time) timeout)
-		  (loop (step-app app))
-		  (app-enqueue! app actor)))
-	      )
-	    ))
-	)
-      (interpreter-count-add! -1)
-      )))
+		  (loop2 (step-app app))
+		  (app-enqueue! app actor))))))
+	(loop (app-dequeue!)))
+      (interpreter-count-add! -1))))
 
 ;; S式 sexp を解釈し，実行する．
 (define (interpret-sexp sexp)
@@ -514,6 +525,8 @@ end
 |#
 (set-global-var 'end '( ))
 
+(set-global-var 'stop '(end . end))
+
 #|
 exit code
 スクリプトを終了する
@@ -521,6 +534,6 @@ code: 終了コード
 |#
 (set-global-var 'exit
   `(^(code)
-     (lambda (code)
-       (set! exit-code code)
+     (lambda (Code)
+       (set! exit-code Code)
        (interpreter-stop!)) code . end))

@@ -1,11 +1,10 @@
-(defineCPS #t ^(x y) x)
-(defineCPS #f ^(x y) y)
+(defineCPS #t ^(then else) then)
+(defineCPS #f ^(then else) else)
 
-(defineCPS if ^(condition app)
-  condition app ( ))
-
-(defineCPS unless ^(condition app)
-  condition ( ) app)
+(defineCPS if ^(condition then)
+  condition then ( )
+  ;; ^(action) action
+  )
 
 [defineCPS println ^(list)
   { lambda (list)
@@ -32,7 +31,7 @@
   let from
   { reply return . end }]
 
-[defineCPS sendRplySync ^(actor message . return)
+[defineCPS sendRplySync ^(actor message)
   sendSync actor { RplyRqstd message }]
 
 [defineCPS AckRqstd ^(message from return behavior)
@@ -75,14 +74,6 @@
 
 (defineCPS beforeTime ^(time)
   (lambda (time)(time<? (current-time) time)) time)
-
-(defineCPS #t ^(then else) then)
-
-(defineCPS #f ^(then else) else)
-
-(defineCPS if ^(condition then)
-  condition then ( ) ^(action)
-  action)
 
 ;;  (lambda (condition then else)(if condition then else)) condition then else
 ;;  ^(thenorelse) thenorelse)
