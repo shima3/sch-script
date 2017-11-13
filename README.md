@@ -27,14 +27,15 @@
 ## Language
 
 次のサンプルコードは Hello, World! を表示します。
+（ただし、後述の println の定義が必要です。）
 
-    (define-cps main ^(args)
+    (defineCPS main ^(args)
       println "Hello, World!"
       )
 
-define-cps は次の書式で関数を定義します。
+defineCPS は次の書式で関数を定義します。
 
-    (define-cps 関数名 関数定義)
+    (defineCPS 関数名 関数定義)
 
 関数名は１つの変数で、変数の厳密な書式は使用する Scheme 処理系に依存しますが、主に英数字からなる文字列です。
 ただし、関数名 main はプログラムを実行したとき、最初に呼び出される関数を示します。
@@ -72,7 +73,7 @@ define-cps は次の書式で関数を定義します。
 継続引数として関数定義を渡す場合、ピリオドと括弧を省略できます。
 次のサンプルコードは 1 と 2 の和 3 を表示します。
 
-    (define-cps main ^(args)
+    (defineCPS main ^(args)
       + 1 2 ^(value)
       println value
       )
@@ -87,11 +88,11 @@ define-cps は次の書式で関数を定義します。
 引数列の値を Scheme 処理系における仮引数列に渡し、Scheme 言語で記述された処理を実行します。
 例えば、上記の `+` と `println` は次のように定義できます。
 
-    (define-cps + ^(x y)
+    (defineCPS + ^(x y)
       (lambda (a b)(+ a b)) x y)
 
-    (define-cps println ^(x)
-      (lambda (a)(display a)(newline)) x ^(d)( ))
+    (defineCPS println ^(x)
+      (lambda (a)(display a)(newline)) x ^(d) '( ))
 
 ## Requirement
 
