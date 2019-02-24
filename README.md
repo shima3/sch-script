@@ -162,4 +162,15 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 ## License
 
+ここに掲載した著作物の利用に関する注意：
+本著作物の著作権は日本ソフトウェア科学会に帰属します。
+本著作物は著作権者である日本ソフトウェア科学会の許可のもとに掲載するものです。
+ご利用に当たっては「著作権法」に従うことをお願いいたします。
+
+Notice for the use of this material: 
+The copyright of this material is retained by the Japan Society for Software Science and Technology (JSSST). 
+This material is published on this web site with the agreement of the JSSST. 
+Please be complied with Copyright Law of Japan if any users wish to reproduce, make derivative work, distribute or make
+available to the public any part or whole thereof. 
+
 [MIT](http://b4b4r07.mit-license.org)
