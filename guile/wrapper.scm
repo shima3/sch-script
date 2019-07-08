@@ -1,6 +1,7 @@
 ;; (import (rnrs (6)))
 ;; (import (rnrs (6))(srfi :18)(srfi :19)(srfi :69)); (ice-9 threads))
-(import (rnrs (6))(srfi :18)(srfi :69)); (ice-9 threads))
+;; (import (rnrs (6))(srfi :9)(srfi :18)(srfi :69)); (ice-9 threads))
+(import (rnrs hashtables (6))(srfi :9)(srfi :18)(srfi :69)); (ice-9 threads))
 ;; (import (rnrs (6))(srfi srfi-19)(srfi srfi-69))
 ;; (use-modules (srfi srfi-19)(srfi srfi-69))
 (define make-hash-table make-eqv-hashtable)
@@ -43,3 +44,50 @@
 
 (define (hash-table-ref/key table key)
   (hash-table-ref/default table key key))
+
+(define (x->string x)
+  (if (string? x) x (object->string x)))
+
+(define (make-queue)
+  (cons '( ) '( )))
+(define (queue-empty? queue)
+  (null? (car queue)))
+(define (queue-first queue)
+  (let ((first (car queue)))
+    (if (null? first) '( )
+      (car first))))
+(define (queue-add! queue el)
+  (let ((first (car queue))(last (cdr queue))(new-last (cons el '( ))))
+    (if (null? first)
+      (set-car! queue new-last)
+      (set-cdr! last new-last))
+    (set-cdr! queue new-last)
+    (null? first) ; 削除予定
+    )
+  )
+(define (queue-remove! queue)
+  (let ((first (car queue)))
+    (if (null? first)
+      '( )
+      (begin
+	(set-car! queue (cdr first))
+	(car first)))
+    )
+  )
+
+(define-macro (define-type Name . Fields)
+  (cons 'define-record-type
+    (cons Name
+      (cons
+	(cons (string->symbol (string-append "make-" (symbol->string Name)))
+	  Fields)
+	(cons (string->symbol (string-append (symbol->string Name) "?"))
+	  (map (lambda (field)
+		 (list field
+		   (string->symbol
+		     (string-append (symbol->string Name) "-"
+		       (symbol->string field)))
+		   (string->symbol
+		     (string-append (symbol->string Name) "-"
+		       (symbol->string field) "-set!")))) Fields)))))
+  )

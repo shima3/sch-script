@@ -120,13 +120,13 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 インタプリタによるスクリプトの実行
 
-    書式$ 処理系/interpret.sh sch-script.scm スクリプト パラメータ・・・
-    例$ gauche/interpret.sh sch-script.scm sample/min-div.sch 13
+    書式$ 処理系/interpret.sh scm/schi.scm スクリプト パラメータ・・・
+    例$ gauche/interpret.sh scm/schi.scm sample/min-div.sch 13
 
 インタプリタのコンパイル
 
-    書式$ 処理系/compile.sh sch-script.scm  
-    例$ gambit/compile.sh sch-script.scm
+    書式$ 処理系/compile.sh scm/schi.scm  
+    例$ gambit/compile.sh scm/schi.scm
 
 コンパイル済みインタプリタによるスクリプトの実行
 

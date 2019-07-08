@@ -1,4 +1,5 @@
 #!/bin/bash
+export CHEZSCHEMELIBDIRS=/usr/local/Cellar/chezscheme/chez-srfi
 file_ext=${1##*/}
 base=${file_ext%.*}
 chez --script chez/aid-compile.scm $1 chez/$base.so

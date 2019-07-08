@@ -1,2 +1,2 @@
 #!/bin/bash
-$* sch-script.scm -e main sample/min-div.sch 13
+$* -e main sample/prime.sch 1000003

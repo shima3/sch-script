@@ -6,7 +6,15 @@
   ;; (apply main-proc args)
   (with-exception-handler
     (lambda (ex)
-      (println "variable=" (unbound-global-exception-variable ex))
+      (cond
+	((unbound-global-exception? ex)
+	  (println "Error: unbound variable: "
+	    (unbound-global-exception-variable ex)))
+	((type-exception? ex)
+	  (println "Error: incorrect type of arguments for "
+	    (type-exception-procedure ex))
+	  (println "Expected: " (type-exception-type-id ex)))
+	(else (println ex)))
       (exit 0)
       )
     (lambda ( )

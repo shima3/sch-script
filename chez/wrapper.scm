@@ -1,3 +1,5 @@
+(import (srfi :13 strings))
+
 (define make-hash-table make-eqv-hashtable)
 (define (hash-table-ref/key table key)
     (hashtable-ref table key key))
@@ -34,3 +36,50 @@
   (hash-table-set! thread-specific-table (get-thread-id) value)
   (mutex-unlock! thread-specific-mutex)
   )
+
+(define (x->string x)
+  (if (string? x) x
+    (call-with-string-output-port
+      (lambda (p) (put-datum p x)))))
+
+(define (make-queue)
+  (cons '( ) '( )))
+(define (queue-empty? queue)
+  (null? (car queue)))
+(define (queue-first queue)
+  (let ((first (car queue)))
+    (if (null? first) '( )
+      (car first))))
+(define (queue-add! queue el)
+  (let ((first (car queue))(last (cdr queue))(new-last (cons el '( ))))
+    (if (null? first)
+      (set-car! queue new-last)
+      (set-cdr! last new-last))
+    (set-cdr! queue new-last)
+    (null? first) ; 削除予定
+    )
+  )
+(define (queue-remove! queue)
+  (let ((first (car queue)))
+    (if (null? first)
+      '( )
+      (begin
+	(set-car! queue (cdr first))
+	(car first)))
+    )
+  )
+
+(define-syntax define-type
+  (lambda (x)
+    (syntax-case x ()
+      ((define-type Name . Fields)
+	(let
+	  ( (exp
+	      (list 'define-record-type (syntax->datum #'Name)
+		(cons 'fields
+		  (map (lambda (field)(list 'mutable field))
+		    (syntax->datum #'Fields)))))
+	    )
+	  ;; (println exp)
+	  (datum->syntax #'define-type exp)))
+      )))

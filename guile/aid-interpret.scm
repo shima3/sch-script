@@ -4,6 +4,7 @@
 ;; (include "schscript.scm")
 ;; (add-to-load-path ".")
 (include "wrapper.scm")
+(define (main-proc cmd . args)(exit 0))
 (let ((args (cdr (command-line))))
   (load-from-path (car args))
   (apply main-proc args))

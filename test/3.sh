@@ -1,2 +1,2 @@
 #!/bin/bash
-$* sch-script.scm -e main sample/concurrent.sch
+$* -e main sample/list.sch
