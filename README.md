@@ -133,6 +133,10 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
     書式$ 処理系/sch-script スクリプト パラメータ  
     例$ gambit/sch-script sample/min-div.sch 13
 
+## Test
+
+$ test/all.sh scm/schi.scm diff interpret gauche
+
 ## Files
 
 * sch-script.scm

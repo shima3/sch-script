@@ -43,6 +43,7 @@
 (set-global-var 'make.queue
   `(lambda args
      (cons 'quote (make-queue))))
+;;     (cons 'quote (make-mt-queue))))
 
 #|
 built-in function: mailboxAdd message ^(isFirst)
@@ -130,26 +131,11 @@ built-in function: mailboxRemove ^(isEmpty)
 ;; アクターは振舞とメールボックスからなる
 ;; メールボックスはキューである
 (define-type actor behavior mailbox dictionary properties)
-#; (define-record-type actor ; srfi-9
-  (make-actor behavior mailbox dictionary)
-  actor?
-  (behavior actor-behavior actor-behavior-set!)
-  (mailbox actor-mailbox)
-  (dictionary actor-dictionary))
-#; (define-record-type actor #t #t
-  (behavior)
-  (mailbox)
-  (dictionary))
-#; (define-record-type actor ; rnrs
-  (fields behavior mailbox dictionary))
-#; (define-record-type actor ; rnrs
-  (fields (mutable behavior)(mutable mailbox)(mutable dictionary)))
 
 ;; 振舞 behavior を持つアクターを作る
 (define (new-actor behavior)
   (make-actor behavior (make-queue)(make-eqv-hashtable)(make-eqv-hashtable))
   )
-;;  (cons behavior (make-mt-queue)))
 
 ;; built-in function: makeActor behavior ^(actor)
 ;; 動作 behavior を行うアクターを作り，変数 actor に渡す
@@ -357,9 +343,9 @@ built-in function: mailboxRemove ^(isEmpty)
 	    ((lambda)
 	      (apply-func func (pickup-cont-arg args) defcont))
 	    ((quote)
-	      ;; (cons (func-with-cont (args-to-func args) defcont) func))
-	      ;; 2019/11/5 変更 junk/seqtest.sch のため
-	      (step-app (cons (car rest) args) defcont))
+	      ; (println "step-app quote")
+	      ; (cons (args-to-func args)(cons (car rest) defcont)))
+	      (cons (func-with-cont (args-to-func args) defcont) func))
 	    ((F.C) ; 継続付き関数 (F.C 関数 . 継続)
 	      ;; (println "func=" func ", args=" args)
 	      ;; 2019/5/25 継続はトップレベルまで戻るのでdefcontは付けない。
@@ -386,8 +372,6 @@ built-in function: mailboxRemove ^(isEmpty)
 	;; (list args func))
       ((func-with-cont? app)
 	'( ))
-      ((procedure? func)
-	(apply-func func (pickup-cont-arg args) defcont))
       (else
 	(display "Illegal function error: ")
 	(write app)
@@ -468,9 +452,18 @@ built-in function: mailboxRemove ^(isEmpty)
   (and (pair? func) (equal? (car func) 'F.C))
   )
 
-;; 2019/7/8
 ;; 継続付き関数を返す。
-#; (define (func-with-cont func cont)
+(define (func-with-cont func cont)
+  (if (null? func)
+    cont
+    (if (or (null? cont)(func-with-cont? func))
+      func
+      (cons 'F.C (cons func cont))
+      )
+    )
+  )
+
+(define (func-with-cont-old func cont)
   ;; (cons 'F.C (cons func cont))
   (if (null? func) cont
     (if (null? cont) func
@@ -483,17 +476,6 @@ built-in function: mailboxRemove ^(isEmpty)
 	  ))
       ))
   ;; (if (null? cont) func (if (null? func) cont (cons 'F.C (cons func cont))))
-  )
-
-;; 継続付き関数を返す。
-(define (func-with-cont func cont)
-  (if (null? func)
-    cont
-    (if (or (null? cont)(func-with-cont? func))
-      func
-      (cons 'F.C (cons func cont))
-      )
-    )
   )
 
 ;; termがpairならば #t、そうでなければ #f を返す。
@@ -526,7 +508,6 @@ built-in function: mailboxRemove ^(isEmpty)
     ;; (println "apply-func func=" func " args=" args)
     ;; (list (if (null? cont) defcont cont)(apply (eval1 func) args))))
     ;; (list (func-with-cont cont defcont)(apply (eval1 func) args))
-    ;; 2019/7/2 多値返却に対応
     (cons (func-with-cont cont defcont)
       (call-with-values (lambda()(apply (eval1 func) args))
 	(lambda results results)))
@@ -575,12 +556,6 @@ built-in function: mailboxRemove ^(isEmpty)
 (define (main-proc cmd . args)
   (interpret args)
   )
-
-(define (copy-cell dst src)
-  ;; (display "copy-cell: ")(display dst)(newline)
-  (set-car! dst (car src))
-  (set-cdr! dst (cdr src))
-  dst)
 
 ;; ----- built-in functions -----
 

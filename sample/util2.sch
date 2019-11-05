@@ -44,7 +44,7 @@ Hat言語のユーティリティ関数群
 
 ( defineCPS ifthenelse ^(condition then else)
   condition then else ^(action)
-  action )
+  action)
 
 ( defineCPS not ^(condition then else)
   condition else then )
@@ -60,16 +60,16 @@ Hat言語のユーティリティ関数群
   (lambda (pair)(cdr pair)) pair ^(right)
   return left right . end )
 
-( defineCPS get_first ^(list)
+( defineCPS getFirst ^(list)
   (lambda (list)(car list)) list )
 
-( defineCPS get_rest ^(list)
+( defineCPS getRest ^(list)
   (lambda (list)(cdr list)) list )
 
 ( defineCPS nop ^ return return )
 
-( defineCPS if ^(condition action . return)
-  condition action return ^(action)
+( defineCPS if ^(condition action)
+  condition action nop ^(action)
   action )
 
 ( defineCPS unless ^(condition action . return)
@@ -93,14 +93,11 @@ action を呼び出す。
   ( ^(loop back rest)
     unless (isPair rest) return ^()
     splitPair rest ^(el rest)
-;;    getFirst rest ^(el)
-;;    getRest rest ^(rest)
     moveAll back rest ^(others)
     action el others ^()
     makePair el back ^(back)
-    loop back rest)
+    loop back rest )
   ( ) list )
-;;  ( ) list . end ) 2019/7/10 修正
 
 #|
 list の要素を非決定的に一つ選び、その要素を第1戻り値、
@@ -116,7 +113,7 @@ list の要素を非決定的に一つ選び、その要素を第1戻り値、
   (lambda (S I C)(string-set! S I C)) str index char ^(dummy)
   return )
 
-( defineCPS string_to_number ^(str)
+( defineCPS stringToNumber ^(str)
   (lambda (str)(string->number str)) str )
 
 ( defineCPS listToValues ^(list . return)

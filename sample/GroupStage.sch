@@ -1,22 +1,35 @@
+#|
+2018ロシアWC
+グループH
+P ポーランド
+S セネガル
+C コロンビア
+J 日本
+|#
+
 (defineCPS + ^(a b) a ^(a) b ^(b . c)
   (lambda (A B)(+ A B)) a b . c)
 
 (defineCPS plus ^(a b) a ^(a) b ^(b)
   (lambda (A B)(+ A B)) a b)
 
+;; pに勝ち点３を与える。
 (defineCPS win-lose ^(p q . c)
   + p 3 ^(p . c2)
   c p q . c2)
 
+;; qに勝ち点３を与える。
 (defineCPS lose-win ^(p q . c)
   + q 3 ^(q)
   c p q)
 
+;; pとqに勝ち点１を与える。
 (defineCPS draw ^(p q . c)
   + p 1 ^(p)
   + q 1 ^(q)
   c p q)
 
+;; pが勝った場合、qが勝った場合、引き分けた場合について非決定的に返す。
 (defineCPS match ^(p q . c)
   (^ c2 win-lose p q . c) ^()
   (^ c3 lose-win p q ^(p2 q2) c p2 q2 . c3) ^()
@@ -57,7 +70,7 @@
     ranking ))
 
 (defineCPS main ^(args)
-  print("start\n") ^()
+  print("start\n")^()
   ( 
     lose-win 0 0 ^(C J)
     lose-win 0 0 ^(P S)
@@ -69,8 +82,7 @@
     rank (S C P) J ^(ranking)
     print("R" ranking " J" J " S" S " C" C " P" P "\n")
     )^()
-  print("end\n")
-  )
+  print("end\n"))
 
 ( defineCPS I2 ^(x y . c)
   print("I2 c=" c "\n")^()

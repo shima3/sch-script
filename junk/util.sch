@@ -60,10 +60,10 @@ Hat言語のユーティリティ関数群
   (lambda (pair)(cdr pair)) pair ^(right)
   return left right . end )
 
-( defineCPS get_first ^(list)
+( defineCPS getFirst ^(list)
   (lambda (list)(car list)) list )
 
-( defineCPS get_rest ^(list)
+( defineCPS getRest ^(list)
   (lambda (list)(cdr list)) list )
 
 ( defineCPS nop ^ return return )
@@ -116,7 +116,7 @@ list の要素を非決定的に一つ選び、その要素を第1戻り値、
   (lambda (S I C)(string-set! S I C)) str index char ^(dummy)
   return )
 
-( defineCPS string_to_number ^(str)
+( defineCPS stringToNumber ^(str)
   (lambda (str)(string->number str)) str )
 
 ( defineCPS listToValues ^(list . return)
@@ -165,6 +165,12 @@ rest: 残りの項からなる数列
        R V ^(r)
        loop s r
        ) seq return )
+
+(defineCPS readLine ^()
+  (lambda()(read-line)))
+
+( defineCPS eof? ^(object)
+  (lambda(Obj)(eof-object? Obj)) object )
 
 ( defineCPS debugPrint ^(tag value . return)
   ( lambda(T V)

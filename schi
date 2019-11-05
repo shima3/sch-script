@@ -1,0 +1,3 @@
+#!/bin/bash
+dir=${0%/*}
+$dir/gauche/interpret.sh $dir/scm/schi.scm $*
