@@ -1,1 +1,1 @@
-$* -e main sample/hello.sch
+$* -e main examples/hello.sch

@@ -1,7 +1,9 @@
+(include "hat/stack.sch")
+
 ( defineCPS main ^(args)
   start ( repeat_at_interval ( println "a" ) 1 ) ^()
   start ( repeat_at_interval ( println "b" ) 2 ) ^()
-  wait )
+  wait)
 
 (defineCPS main1 ^(args)
   repeat_at_interval (println "a") 1)

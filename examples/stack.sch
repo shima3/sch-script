@@ -1,3 +1,143 @@
+(include "util.sch")
+
+(defineCPS list2stack ^(list . return)
+  cond
+  ((list_pair? list)
+    list_split list ^(first rest)
+    return first ^()
+    list2stack rest
+    )
+  (else
+    stack_end
+    )
+  )
+
+(defineCPS stack_push2 ^($stack $element . $return)
+  $return
+  (^ $return2
+    $return2 $element . $stack
+    )
+  )
+
+(defineCPS stack1 ^ $r
+  $r 1 ^ $r
+  $r 2 ^ $r
+  $r 3 . stack_end)
+
+(defineCPS stack2 list2stack (1 2 3))
+
+(defineCPS stack3 ^ $r
+  $r 1 ^ $r
+  $r 2 ^ $r
+  $r 3)
+
+(defineCPS main2 ^()
+  fix
+  (^(loop S . break)
+    stack_empty S ^(P)
+    ;; S が空のとき，stack_pop S ^(el S2) すると loop を抜ける。
+    if P
+    ( print("(break)")^()
+      break
+      )^()
+    stack_pop S ^(E S2)
+    print(E "\n")^()
+    loop S2
+    ) stack1 ^()
+  print("end\n")^()
+  exit 0)
+
+(defineCPS main3 ^ R
+  stack_push R "hoge" ^(R)
+  print("Start\n")^()
+  stack_print R ^()
+  print("End\n")^()
+  exit 0)
+
+(defineCPS test ^ cont
+  stack_pop cont ^(el cont)
+  print("el=" el "\n")^()
+  stack_pop cont ^(el cont)
+  print("el=" el "\n")^()
+  stack_pop cont ^(el cont)
+  print("el=" el "\n")^()
+  stack_pop cont ^(el cont)
+  print("el=" el "\n")^()
+  print("cont=" cont "\n")^()
+  exit 0
+  )
+
+(defineCPS main4 ^()
+  (test 1 2 3) 4 5
+  )
+
+(defineCPS main5 ^()
+  stack_pop stack3 ^(el stack)
+  print("el=" el "\n")^()
+  print("stack=" stack "\n")^()
+  stack_pop stack ^(el stack)
+  print("el=" el "\n")^()
+  print("stack=" stack "\n")^()
+  stack_pop stack ^(el stack)
+  print("el=" el "\n")^()
+  print("stack=" stack "\n")^()
+  exit 0)
+
+(defineCPS seq1 ^(H)
+  H 1 2 3 . stack_end)
+
+(defineCPS seq_print2 ^(S . R)
+  ;; print("seq_print2 S=" S "\n")^()
+  if(stack_empty S)(print("stack_empty\n")^() R)^()
+  seq_get S ^(E S)
+  print(E "\n")^()
+  seq_print2 S . R)
+
+(defineCPS main6 ^()
+  print("Start\n")^()
+  fix
+  (^(L S . break)
+    if(stack_empty S) break ^()
+    seq_get S ^(E S)
+    print(E "\n")^()
+    L S) seq1 ^()
+  print("End\n")^()
+  exit 0)
+
+(defineCPS stack4 ^ R
+  R 1 ^ R
+  R 2 ^ R
+  R 3 . stack_end)
+
+(defineCPS main7 ^()
+  print("Start\n")^()
+  stack_print stack4 ^()
+  print("End\n")^()
+  exit 0)
+
+(defineCPS hoge ^ R
+  stack_pop R ^(S R)
+  print("S=" S "\n")^()
+  seq_get S ^(E S)
+  print("E1=" E "\n")^()
+  seq_get S ^(E S)
+  print("E2=" E "\n")^()
+  seq_get S ^(E S)
+  print("E3=" E "\n")^()
+  print("S=" S "\n") . R)
+
+(defineCPS hoge2 ^ R
+  stack_pop R ^(S R)
+  seq_print2 S ^()
+  R)
+
+(defineCPS main8 ^()
+  print("Begin\n")^()
+  (hoge2 1 2 3 . stack_end)^()
+  print("End\n")^()
+  ;; exit 0
+  )
+
 (defineCPS isPair lambda (exp)(pair? exp))
 
 (defineCPS makePair lambda (left right)(cons left right))
@@ -135,10 +275,6 @@
   stackIsEmpty stack ^(flag)
   println("main 7 flag=" flag) ;; ^()
   ;; nop
-  )
-
-( defineCPS if ^(condition then)
-  condition then nop
   )
 
 ( defineCPS println ^(list . return)

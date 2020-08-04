@@ -6,7 +6,7 @@ then
     echo OUT: out diff
     echo TYPE: interpret compile
     echo SCHEME: chez chicken gambit gauche guile
-    echo Example: "$0" schsi.scm diff  interpret gauche
+    echo Example: "$0" schsi.scm diff interpret gauche
     exit 0
 fi
 SRC="$1"

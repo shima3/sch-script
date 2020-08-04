@@ -1,2 +1,2 @@
 #!/bin/bash
-$* -e main sample/stream.sch
+$* -e main examples/stream.sch

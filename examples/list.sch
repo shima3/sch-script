@@ -63,15 +63,15 @@
 
 (defineCPS I ^(x . return) return x)
 
-( defineCPS main ^(args)
+( defineCPS main ^()
   I () ^(list)
   cons 1 list ^(list)
   cons 2 list ^(list)
   cons 3 list ^(list)
   print(list "\n") ^()
   moveAll list () ^(list)
-  print(list "\n")
-  )
+  print(list "\n")^()
+  exit 0)
 
 ( defineCPS main1 ^(args)
   I (1) ^(list)

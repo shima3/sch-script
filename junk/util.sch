@@ -1,11 +1,7 @@
 #|
-Hat言語のユーティリティ関数群
+Hat言語のユーティリティ関数
 |#
-( defineCPS print ^(list . return)
-  ( lambda (list)
-    (display (string-concatenate (map x->string list)))
-    ) list ^(dummy)
-  return )
+(include "../sample/native/cui.sch")
 
 ( defineCPS fix ^(f) f (fix f) )
 
@@ -42,7 +38,7 @@ Hat言語のユーティリティ関数群
 ( defineCPS divMod ^(a b) a ^(a) b ^(b)
   (lambda (A B)(div-and-mod A B)) a b )
 
-( defineCPS ifthenelse ^(condition then else)
+( defineCPS if_then_else ^(condition then else)
   condition then else ^(action)
   action )
 
@@ -166,18 +162,8 @@ rest: 残りの項からなる数列
        loop s r
        ) seq return )
 
-(defineCPS readLine ^()
-  (lambda()(read-line)))
-
 ( defineCPS eof? ^(object)
   (lambda(Obj)(eof-object? Obj)) object )
-
-( defineCPS debugPrint ^(tag value . return)
-  ( lambda(T V)
-    (display T)
-    (write V)
-    (newline) ) tag value ^(dummy)
-  return )
 
 ( defineCPS I ^(x . r) r x)
 

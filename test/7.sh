@@ -1,2 +1,2 @@
 #!/bin/bash
-$* -e main sample/stack.sch
+$* -e main examples/stack.sch

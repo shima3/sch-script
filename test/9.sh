@@ -1,2 +1,2 @@
 #!/bin/bash
-$* sample/GroupStage.sch
+$* examples/GroupStage.sch

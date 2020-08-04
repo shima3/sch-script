@@ -1,5 +1,7 @@
-;; シングルスレッド版
-
+#|
+インタプリタ本体
+シングルスレッド版
+|#
 ;; Scheme処理系依存を吸収するためのユーティリティ関数
 (define (cons-alist key datum alist)(cons (cons key datum) alist))
 (define (eval1 expr)(eval expr (interaction-environment)))
@@ -36,97 +38,11 @@
 ;; 終了コード
 (define exit-code 0)
 
-;; キューを作る
-#; (define (make-queue)(cons '( ) '( )))
-
-#|
-キュー queue に要素 el を追加する
-追加して要素数が１の場合，戻り値は #t
-追加して要素数が２つ以上の場合，戻り値は #f
-|#
-#; (define (enqueue! queue el)
-  (let ((first (car queue))(last (cdr queue))(new-last (cons el '( ))))
-    (if (null? first)
-      (set-car! queue new-last)
-      (set-cdr! last new-last))
-    (set-cdr! queue new-last)
-    (null? first) ; 削除予定
-    )
-  )
-
-;; キュー queue から要素を取り出す
-#; (define (dequeue! queue)
-  (let ((first (car queue)))
-    (if (null? first)
-      '( )
-      (begin
-	(set-car! queue (cdr first))
-	(car first)))
-    )
-  )
-
-;; キュー queue が空かどうか判定する
-#; (define (queue-empty? queue)
-  (null? (car queue)))
-
-;; キュー queue の要素が１つだけかどうか判定する
-#; (define (queue-one? queue)
-  (eq? (car queue)(cdr queue)))
-
-;; キュー queue の先頭の値を返す
-#; (define (queue-peek queue)
-  (let ((first (car queue)))
-    (if (null? first)
-      '( )
-      (car first))))
-
-;; スレッドセーフなキューを作る
-#; (define (make-mt-queue)
-  (cons (make-mutex)(make-queue)))
-
-#|
-スレッドセーフなキュー queue に要素 el を追加する
-追加して要素数が１の場合，戻り値は #t
-追加して要素数が２つ以上の場合，戻り値は #f
-|#
-#; (define (mt-enqueue! queue el)
-  (let ((mutex (car queue)))
-    (mutex-lock! mutex)
-    (let ((flag (enqueue! (cdr queue) el)))
-      (mutex-unlock! mutex)
-      flag
-      )
-    )
-  )
-
-;; スレッドセーフなキュー queue から要素を取り出す
-#; (define (mt-dequeue! queue)
-  (let ((mutex (car queue))(el '( )))
-    (mutex-lock! mutex)
-    (set! el (dequeue! (cdr queue)))
-    (mutex-unlock! mutex)
-    el)
-  )
-
-;; スレッドセーフなキュー queue が空かどうか判定する
-#; (define (mt-queue-empty? queue)
-  (queue-empty? (cdr queue)))
-
-#; (define (mt-queue-peek queue)
-  (queue-peek (cdr queue)))
-
-;; (define test-queue (make-mt-queue))
-;; (mt-enqueue! test-queue "aho 1")
-;; (mt-enqueue! test-queue "boke 2")
-;; (println (mt-dequeue! test-queue))
-;; (println (mt-dequeue! test-queue))
-
 ;; built-in function: make.queue ^(queue)
 ;; 空のキューを新たに作り，変数 queue に渡す
 (set-global-var 'make.queue
   `(lambda args
      (cons 'quote (make-queue))))
-;;     (cons 'quote (make-mt-queue))))
 
 #|
 built-in function: mailboxAdd message ^(isFirst)
@@ -141,10 +57,6 @@ built-in function: mailboxAdd message ^(isFirst)
 	 (queue-add! mailbox message)
 	 flag)))
   )
-#; (let ([mutex (car mailbox)][queue (cdr mailbox)])
-(mutex-lock! mutex)
-(enqueue! queue message)
-(mutex-unlock! mutex))
 
 #|
 built-in function: mailboxRemove ^(isEmpty)
@@ -156,12 +68,6 @@ built-in function: mailboxRemove ^(isEmpty)
   `(lambda ()
      (let ((mailbox (actor-mailbox (current-actor))))
        (queue-remove! mailbox)
-       #; (let ([mutex (car mailbox)][queue (cdr mailbox)])
-	 (mutex-lock! mutex)
-	 (dequeue! queue)
-	 (let ([flag (queue-empty? queue)])
-	   (mutex-unlock! mutex)
-	   flag))
        )))
 
 ;; 現在のアクターを返す
@@ -195,12 +101,23 @@ built-in function: mailboxRemove ^(isEmpty)
   ;; (println "app-enqueue! 2 " app)
   )
 
-;; built-in function: start app ^( )
-;; 関数適用 app の計算を開始する
+#| 2018/9/25 Tue
+関数 実引数* . 継続実引数
+を command と記述することにする。
+これまで app と記述していたが、徐々に書き換えて行く。
+|#
+
+;; command: 
+(define (start-command command)
+  (app-enqueue! command (current-actor)))
+
+;; built-in function: start command ^( )
+;; 関数適用 command の計算を開始する
 (set-global-var 'start
-  '(lambda (app)
+  '(lambda (command)
      ;; (println "start 1")
-     (app-enqueue! app (current-actor))
+     ;; (app-enqueue! app (current-actor))
+     (start-command command)
      ;; (println "start 2")
      '( )))
 
@@ -212,7 +129,7 @@ built-in function: mailboxRemove ^(isEmpty)
 
 ;; アクターは振舞とメールボックスからなる
 ;; メールボックスはキューである
-(define-type actor behavior mailbox dictionary)
+(define-type actor behavior mailbox dictionary properties)
 #; (define-record-type actor ; srfi-9
   (make-actor behavior mailbox dictionary)
   actor?
@@ -230,12 +147,7 @@ built-in function: mailboxRemove ^(isEmpty)
 
 ;; 振舞 behavior を持つアクターを作る
 (define (new-actor behavior)
-  ;; (println "new-actor 1")
-  #; (let ((actor (make-actor behavior (make-mt-queue)(make-eqv-hashtable))))
-    (println "new-actor 2 mailbox=" (actor-mailbox actor))
-    actor)
-  (make-actor behavior (make-queue)(make-eqv-hashtable))
-  ;; (make-actor behavior (make-mt-queue)(make-eqv-hashtable))
+  (make-actor behavior (make-queue)(make-eqv-hashtable)(make-eqv-hashtable))
   )
 ;;  (cons behavior (make-mt-queue)))
 
@@ -262,25 +174,38 @@ built-in function: mailboxRemove ^(isEmpty)
      behavior ^(dummy)
      return))
 
-;; アクター actor の動作を返す
-#; (define (actor-behavior actor)
-  (car actor))
-
 ;; built-in function: getBehavior ^(behavior)
 ;; 現在のアクターのメールボックスを変数 mailbox に渡す
 (set-global-var 'getBehavior
   '(lambda ( )
      (actor-behavior (current-actor))))
 
-;; アクター actor のメールボックスを返す
-#; (define (actor-mailbox actor)
-  (cdr actor))
-
 ;; built-in function: getMailbox ^(mailbox)
 ;; 現在のアクターのメールボックスを変数 mailbox に渡す
 (set-global-var 'getMailbox
   '(lambda ( )
      (actor-mailbox (current-actor))))
+
+(define (get-current-properties)
+  (actor-properties (current-actor)))
+
+;; built-in function: getProperty name failure ^(value)
+(set-global-var 'getProperty
+  '(^(name failure . return)
+     (lambda (K F)
+       (hash-table-ref/default (get-current-properties) K F)
+       ) name failure ^(action)
+     action
+     ))
+
+;; built-in function: getProperty name failure ^()
+(set-global-var 'setProperty
+  '(^(name value . return)
+     (lambda (K A)
+       (hash-table-set! (get-current-properties) K A)
+       ) name (^ r r value) ^(dummy)
+     return
+     ))
 
 ;; built-in function: let actor app ^( )
 ;; アクター actor に関数適用 app を計算させる
@@ -306,15 +231,6 @@ built-in function: mailboxRemove ^(isEmpty)
 	)))
   ;; (display "actor-respond 4 ")(display actor)(newline)
   )
-#; (define (actor-respond actor)
-  (let ((behavior (car actor))(queue (cdr actor)))
-    (let ((message (mt-dequeue! queue)))
-      (if (not (null? message))
-	  (app-enqueue! (list message behavior) actor)
-	)
-      )
-    )
-  )
 
 ;; 現在のアクターに次のメッセージを実行させる
 (set-global-var 'actorNext
@@ -339,29 +255,6 @@ built-in function: mailboxRemove ^(isEmpty)
      )
   )
 
-;; アクター actor にメッセージ message を送信する
-#; (define (send actor message)
-  ;; (display "send")(newline)
-  ;; (display (cdr (cdr actor)))(newline)
-  (if (mt-enqueue! (cdr actor) message)
-    (actor-respond actor))
-  )
-
-;; built-in function: sendAsync qActor message ^( )
-;; quote つきアクター qActor に非同期メッセージ message を送信する
-#; (set-global-var 'sendAsync
-  '(lambda (qActor message)
-     ;; (display "sendAsync")(display message)(newline)
-     (send (cdr qActor) message)
-     '( )))
-
-;; インタプリタの個数を１つ増やす（スレッドセーフ）
-#; (define (interpreter-count-add! n)
-  (mutex-lock! interpreter-mutex)
-  (set! interpreter-count (+ interpreter-count n))
-  (mutex-unlock! interpreter-mutex)
-  )
-
 ;; ユーザによって定義された main を最初に呼び出す．
 (define entry-point 'main)
 
@@ -371,7 +264,7 @@ built-in function: mailboxRemove ^(isEmpty)
 (define duration1s (seconds->duration 1))
 
 (define (step-loop)
-  (let loop ( (app-actor (app-dequeue!)) )
+  (let loop ( [app-actor (app-dequeue!)] )
     (if (not (null? app-actor))
       (let ( (actor (cdr app-actor))
 	     (timeout (add-duration (current-time) duration100ms)) )
@@ -380,14 +273,12 @@ built-in function: mailboxRemove ^(isEmpty)
 	(let loop2 ( (app (car app-actor)) )
 	  (if (not (null? app))
 	    (if (time<? (current-time) timeout)
-	      (loop2 (step-app app '(^($1) $1 . end))) ; (loop2 (step-app app '( )))
+	      (loop2 (step-app app 'end))
+	      ;; (loop2 (step-app app '(^($1) $1 . end)))
+	      ;; (loop2 (step-app app '( )))
 	      (app-enqueue! app actor))))
 	(loop (app-dequeue!)))))
   )
-
-#; (define (step-loop command)
-  (if (and loop-flag (not (null? command)))
-    (step-loop (step-app command 'end))))
 
 ;; プログラムを解釈し，実行する．
 ;; args：コマンドラインの引数のリスト
@@ -400,13 +291,13 @@ built-in function: mailboxRemove ^(isEmpty)
 	  (let ((opt (string-ref arg 1)))
 	    (case opt
 	      ((#\e)
-	       (set! entry-point (substring arg 2 (string-length arg)))
-	       (if (equal? entry-point "")
-		   (begin
-		     (set! args (cdr args))
-		     (set! entry-point (car args))))
-	       (set! entry-point (string->symbol entry-point))
-	       ))
+		(set! entry-point (substring arg 2 (string-length arg)))
+		(if (equal? entry-point "")
+		  (begin
+		    (set! args (cdr args))
+		    (set! entry-point (car args))))
+		(set! entry-point (string->symbol entry-point)))
+	      )
 	    (set! args (cdr args))
 	    (loop))))))
   (load-sch-script (car args))
@@ -414,13 +305,29 @@ built-in function: mailboxRemove ^(isEmpty)
   (step-loop)
   (exit exit-code))
 
+(define sch-load-path "")
+
+(define (get-path filename)
+  (let ([index (string-index-right filename #\/)])
+    (if (number? index)
+      (substring filename 0 (+ index 1))
+      #f
+      )))
+
 ;; sch-script 言語のファイル filename を読み込む
 (define (load-sch-script filename)
-  (call-with-input-file filename
-    (lambda (port)
-      (let loop ( )
-	(if (interpret-sexp (read port))
-	  (loop))))))
+  (let ([filepath (string-append sch-load-path filename)])
+    (call-with-input-file filepath
+      (lambda (port)
+	(let ( [previous sch-load-path]
+	       [next (get-path filepath)] )
+	  (if (string? next)
+	    (set! sch-load-path next))
+	  (let loop ( )
+	    (if (interpret-sexp (read port))
+	      (loop)))
+	  (set! sch-load-path previous)
+	  )))))
 
 ;; S式 sexp を解釈し，実行する．
 (define (interpret-sexp sexp)
@@ -432,7 +339,9 @@ built-in function: mailboxRemove ^(isEmpty)
 ;; コマンド cmd，引数 args を解釈し，実行する．
 (define (interpret-command cmd args)
   (case cmd
-    ((defineCPS)(set-global-var (car args)(cdr args)))))
+    ((defineCPS)(set-global-var (car args)(cdr args)))
+    ((include)(load-sch-script (car args)))
+    ))
 
 ;; 関数適用 app を一段階実行する．
 (define (step-app app defcont)
@@ -449,14 +358,18 @@ built-in function: mailboxRemove ^(isEmpty)
 	    ((lambda)
 	      (apply-func func (pickup-cont-arg args) defcont))
 	    ((quote)
-	      ; (println "step-app quote")
-	      ; (cons (args-to-func args)(cons (car rest) defcont)))
-	      (cons (func-with-cont (args-to-func args) defcont) func))
+	      ;; (cons (func-with-cont (args-to-func args) defcont) func))
+	      ;; 2019/11/5 変更 junk/seqtest.sch のため
+	      (step-app (cons (car rest) args) defcont))
+	    ((PROMISE)
+	      (step-app (cons (eval-promise func) args) defcont))
 	    ((F.C) ; 継続付き関数 (F.C 関数 . 継続)
+	      ;; (println "func=" func ", args=" args)
+	      ;; 2019/5/25 継続はトップレベルまで戻るのでdefcontは付けない。
 	      (step-app (cons (car rest) args)(cdr rest)))
 	    (else ; funcが関数適用
-	      ; (println "step-app else")
-	      ; (step-app func (func-with-cont (cons '^ (cons '($0)(cons '$0 args))) defcont)))
+	      ;; (println "step-app else func=" func " args=" args)
+	      ;; (step-app func (func-with-cont (cons '^ (cons '($0)(cons '$0 args))) defcont)))
 	      (step-app func (func-with-cont (args-to-func args) defcont)))
 	      ;; (substitute-term func '( ) args))
 	      ;; bug (cons (cons '^ (cons '($0) (cons '$0 func))) args))
@@ -474,15 +387,28 @@ built-in function: mailboxRemove ^(isEmpty)
 	  ;; (cons defcont (cons func 'end))
 	  (cons args (cons func defcont))))
 	;; (list args func))
+      ((func-with-cont? app)
+	'( ))
+      ((procedure? func)
+	(apply-func func (pickup-cont-arg args) defcont))
       (else
 	(display "Illegal function error: ")
 	(write app)
 	(newline)
 	(exit 1)))))
 
+(define (get-tail args)
+  (if (pair-terms? args)
+    (get-tail (cdr args))
+    args))
+
 (define (args-to-func args)
   (if (pair-terms? args)
+    (cons '^ (cons '(I$0)(cons 'I$0 args)))
+    #; (if (null? (get-tail args))
+    (cons '^ (cons '($0 . $1)(cons '$0 (append args '$1))))
     (cons '^ (cons '($0)(cons '$0 args)))
+    )
     args))
 
 ;; parsとappからなるラムダ抽象にargsを与えて一段階実行する。
@@ -506,7 +432,8 @@ built-in function: mailboxRemove ^(isEmpty)
       ;; (list args (cons '^ (cons pars (substitute-term app env '( )))))
       )
     ;; parsが継続仮引数の場合
-    (let ([flag (and (pair? args)(equal? (car args) "aho"))]); begin
+    (begin
+      ;; (let ([flag (and (pair? args)(equal? (car args) "aho"))])
       ;; (println "step-abs 2 args=" args)
       #; (if(pair-terms? args) ; 引数が余った場合
 	(set! args (cons '^ (cons '($1)(cons '$1 args))))
@@ -533,23 +460,58 @@ built-in function: mailboxRemove ^(isEmpty)
       ;; (println "step-abs 3 app=" app " env=" env)
       (set! app (substitute-term app env)) ; 局所変数に値を代入する
       ;; { if flag (println "step-abs 4 (car app)=" (car app)) }
+      ;; (println "step-abs 4 app=" app " args=" args)
+      ;; 2018/6/24
       (cons (func-with-cont (car app) args)(cdr app))
       )
     )
   )
 
+(define (eval-promise P)
+  (set-car! P 'quote)
+  `(^ return
+      ,P ^ S
+      (lambda(r)
+	(set-car! (quote ,(cdr P)) r)
+	)(^ return2 S return2)^(D)
+      S return)
+  )
+
+(define (func-with-cont? func)
+  (and (pair? func) (equal? (car func) 'F.C))
+  )
+
+;; 2019/7/8
 ;; 継続付き関数を返す。
-(define (func-with-cont func cont)
+#; (define (func-with-cont func cont)
   ;; (cons 'F.C (cons func cont))
-  (if (null? func) cont (cons 'F.C (cons func cont)))
+  (if (null? func) cont
+    (if (null? cont) func
+      (cons 'F.C
+	(if (func-with-cont? func)
+	  ;; (cons (car (cdr func)) (func-with-cont (cdr (cdr func)) cont))
+	  (cons func cont)
+	  ;; (cons (car (cdr func))(cdr (cdr func)))
+	  (cons func cont)
+	  ))
+      ))
   ;; (if (null? cont) func (if (null? func) cont (cons 'F.C (cons func cont))))
   )
+
+;; 継続付き関数を返す。
+(define (func-with-cont func cont)
+  (if (null? func)
+    cont
+    (if (or (null? cont)(func-with-cont? func))
+      func
+      (cons 'F.C (cons func cont))
+      )))
 
 ;; termがpairならば #t、そうでなければ #f を返す。
 (define (pair-terms? term)
   (and (pair? term)
     (case (car term)
-      ((^ lambda quote F.C) #f)
+      ((^ lambda quote F.C PROMISE) #f)
       (else #t)))
   )
 
@@ -574,7 +536,11 @@ built-in function: mailboxRemove ^(isEmpty)
   [let ([cont (car cargs)][args (cdr cargs)])
     ;; (println "apply-func func=" func " args=" args)
     ;; (list (if (null? cont) defcont cont)(apply (eval1 func) args))))
-    (list (func-with-cont cont defcont)(apply (eval1 func) args))
+    ;; (list (func-with-cont cont defcont)(apply (eval1 func) args))
+    ;; 2019/7/2 多値返却に対応
+    (cons (func-with-cont cont defcont)
+      (call-with-values (lambda()(apply (eval1 func) args))
+	(lambda results results)))
     ])
 
 ;; 項 term に含まれる変数を env で対応づけられた値に置き換える。
@@ -586,12 +552,7 @@ built-in function: mailboxRemove ^(isEmpty)
       (let ((first (car term))(rest (cdr term)))
 	(case first
 	  ((^)(substitute-abs (car rest)(cdr rest) env))
-	  ((F.C)
-	    ;; (println "substitute-term F.C rest=" rest)
-	    (func-with-cont (substitute-term (car rest) env)(cdr rest))
-	    )
-	  ((lambda) term)
-	  ((quote) term)
+	  ((lambda quote F.C PROMISE) term)
 	  (else
 	    ;; (println "substitute-term else")
 	    (cons (substitute-term first env)
@@ -617,6 +578,12 @@ built-in function: mailboxRemove ^(isEmpty)
   (interpret args)
   )
 
+(define (copy-cell dst src)
+  ;; (display "copy-cell: ")(display dst)(newline)
+  (set-car! dst (car src))
+  (set-cdr! dst (cdr src))
+  dst)
+
 ;; ----- built-in functions -----
 
 #|
@@ -624,6 +591,11 @@ end
 式の終端
 |#
 (set-global-var 'end '( ))
+#; (set-global-var 'end
+  '(^(out . return)
+     return #t . end
+     )
+  )
 
 (set-global-var 'stop '(end . end))
 
@@ -633,7 +605,41 @@ exit code
 code: 終了コード
 |#
 (set-global-var 'exit
+  '(^($code)
+     (lambda(code)
+       (exit code)
+       ) $code . end)
+  )
+;; 2020/6/14 Sun changed
+#; (set-global-var 'exit
   `(^(code)
      (lambda (Code)
        (set! exit-code Code)
        (interpreter-stop!)) code . end))
+
+#|
+delay app ^(P)
+promiseを生成し、変数Pに渡す。
+|#
+(set-global-var 'delay
+  '(^(E)
+     (lambda(e)
+       (cons 'PROMISE (list e))) E))
+
+(set-global-var 'cont_push
+  '(^($cont $func)
+     (lambda(cont func)
+       (func-with-cont func cont)
+       ) $cont $func)
+  )
+
+(set-global-var 'cont_pop
+  '(^($cont . $return)
+     (lambda(cont)
+       (cadr cont)
+       ) $cont ^($first)
+     (lambda(cont)
+       (cddr cont)
+       ) $cont ^($rest)
+     $return $first $rest)
+  )

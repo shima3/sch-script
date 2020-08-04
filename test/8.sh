@@ -1,2 +1,2 @@
 #!/bin/bash
-$* -e main sample/non-deterministic.sch
+$* -e main examples/non-deterministic.sch

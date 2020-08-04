@@ -1,6 +1,8 @@
-# Scheme Hat Script
+# Hat Interpreter
 
-継続渡しスタイルのラムダ計算とSchemeに基づく関数型スクリプト言語
+An Interpreter of The Hat Programming Language
+
+Hatプログラミング言語のインタプリタ
 
 ## Description
 
@@ -27,33 +29,39 @@
 ## Language
 
 次のサンプルコードは Hello, World! を表示します。
-（ただし、後述の println の定義が必要です。）
 
+    (include "util.sch")
     (defineCPS main ^(args)
-      println "Hello, World!"
-      )
+      print("Hello, World!\n"))
+
+include は次の書式で別のファイルを読み込みます。
+
+    (include "ファイル名")
+
+util.sch には入出力、数値計算、数列、文字列、リストなどの処理が定義されています。
 
 defineCPS は次の書式で関数を定義します。
 
     (defineCPS 関数名 関数定義)
 
 関数名は１つの変数で、変数の厳密な書式は使用する Scheme 処理系に依存しますが、主に英数字からなる文字列です。
-ただし、関数名 main はプログラムを実行したとき、最初に呼び出される関数を示します。
 関数定義は次の書式で基本的な計算を示します。
 
     ^(仮引数列 . 継続仮引数) 関数 引数列 . 継続引数
 
 仮引数列は変数の列、継続仮引数は１つの変数です。
 関数と継続引数は１つの項、引数列は項の列です。
-上記のサンプルコードの場合、args が仮引数、println が関数、"Hello, World!" が引数です。
 
 複数の変数は空白で区切ります。
 項は変数または括弧で囲んだ関数定義です。
 継続仮引数または継続引数の前のピリオドの前後には空白が必要です。
 
+上記のサンプルコードの場合、関数 main が仮引数 args をとり、関数 print を呼び出し、その引数が ("Hello, World!\n") であることを示します。
+関数 main は、プログラムを実行したとき、最初に呼び出される関数です。
+
 仮引数が必要ない場合、次のように記述します。
 
-    ^継続仮引数 関数 引数列 . 継続引数
+    ^ 継続仮引数 関数 引数列 . 継続引数
 
 継続仮引数が必要ない場合、次のように記述します。
 
@@ -67,7 +75,7 @@ defineCPS は次の書式で関数を定義します。
 
     ^(仮引数列 . 継続仮引数) 関数 引数列
 
-上記のサンプルコードの関数定義 `^(args) println "Hello, World!"` は `^(args . c) println "Hello, World!" . c` の継続仮引数と継続引数を省略しています。
+上記のサンプルコードの関数定義 `^(args) print("Hello, World!\n")` は `^(args . c) println "Hello, World!" . c` の継続仮引数と継続引数を省略しています。
 関数 main を呼び出すとき、戻り先が継続仮引数 c に渡され、`println "Hello, World!"` を実行した後、c を呼び出します。
 
 継続引数として関数定義を渡す場合、ピリオドと括弧を省略できます。
@@ -75,24 +83,28 @@ defineCPS は次の書式で関数を定義します。
 
     (defineCPS main ^(args)
       + 1 2 ^(value)
-      println value
-      )
+      print(value))
 
-上記の関数定義 `^(args) + 1 2 ^(value) println value` は `^(args) + 1 2 . (^(value) println value)` のピリオドと括弧を省略しています。
-`+ 1 2` は 1 と 2 の和 3 を求め、継続引数 `^(value) println value` の value に与え、`println value` は value の値 3 を表示します。
+上記の関数定義 `^(args) + 1 2 ^(value) println value` は `^(args) + 1 2 . (^(value) print(value))` のピリオドと括弧を省略しています。
+`+ 1 2` は 1 と 2 の和 3 を求め、継続引数 `^(value) print(value)` の value に与え、`print(value)` は value の値 3 を表示します。
 
 次の書式で Scheme 処理系の機能を利用できます。
 
-    (lambda ^(仮引数列) 処理) 引数列
+    (lambda(仮引数列) 処理) 引数列
 
 引数列の値を Scheme 処理系における仮引数列に渡し、Scheme 言語で記述された処理を実行します。
-例えば、上記の `+` と `println` は次のように定義できます。
+例えば、上記の `+` と `print` は次のように定義できます。
 
-    (defineCPS + ^(x y)
-      (lambda (a b)(+ a b)) x y)
+    (defineCPS + ^($a $b)
+      (lambda(a b)
+        (+ a b)
+      ) $a $b)
 
-    (defineCPS println ^(x)
-      (lambda (a)(display a)(newline)) x ^(d) '( ))
+    (defineCPS print ^($list . $return)
+      (lambda(list)
+        (display (string-concatenate (map x->string list)))
+      ) $list ^($dummy)
+      $return)
 
 ## Requirement
 
@@ -120,28 +132,28 @@ Chez (Ver. 9.4), Chicken (Ver. 4.10.0), Gambit (Ver. 4.8.7), Gauche (Ver. 0.9.5)
 
 インタプリタによるスクリプトの実行
 
-    書式$ 処理系/interpret.sh scm/schi.scm スクリプト パラメータ・・・
-    例$ gauche/interpret.sh scm/schi.scm sample/min-div.sch 13
+    書式$ 処理系/interpret.sh src/hat.scm スクリプト パラメータ・・・
+    例$ gauche/interpret.sh src/hat.scm sample/min-div.sch 13
 
 インタプリタのコンパイル
 
-    書式$ 処理系/compile.sh scm/schi.scm  
-    例$ gambit/compile.sh scm/schi.scm
+    書式$ 処理系/compile.sh src/hat.scm  
+    例$ gambit/compile.sh src/hat.scm
 
 コンパイル済みインタプリタによるスクリプトの実行
 
     書式$ 処理系/sch-script スクリプト パラメータ  
-    例$ gambit/sch-script sample/min-div.sch 13
+    例$ gambit/sch-script examples/min-div.sch 13
 
 ## Test
 
-$ test/all.sh scm/schi.scm diff interpret gauche
+$ test/all.sh src/hat.scm diff interpret gauche
 
 ## Files
 
-* sch-script.scm
-  提案言語のインタプリタ
-* sample/
+* hat.scm
+  Hat言語のインタプリタ
+* examples/
   提案言語のサンプルコード
     * min-div.sch  
       2以上で最小の約数を表示する．

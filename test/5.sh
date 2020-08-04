@@ -1,2 +1,2 @@
 #!/bin/bash
-$* -e main sample/concurrent.sch
+$* -e main examples/concurrent.sch

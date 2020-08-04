@@ -263,8 +263,16 @@ built-in function: mailboxRemove ^(isEmpty)
 ;; 1秒の時間間隔
 (define duration1s (seconds->duration 1))
 
+;; (define default-continuation '(F.C end))
+;; (define default-continuation '(F.C stack_end))
+;; (define default-continuation 'stack_end)
+;; (define default-continuation '(F.C (exit 0) . stack_end))
+;; (define default-continuation '(^ R R ^(F . C) C))
+;; (define default-continuation '(^ R R end . stack_end))
+(define default-continuation '(^ R R stop . stack_end))
+
 (define (step-loop)
-  (let loop ( (app-actor (app-dequeue!)) )
+  (let loop ( [app-actor (app-dequeue!)] )
     (if (not (null? app-actor))
       (let ( (actor (cdr app-actor))
 	     (timeout (add-duration (current-time) duration100ms)) )
@@ -273,7 +281,9 @@ built-in function: mailboxRemove ^(isEmpty)
 	(let loop2 ( (app (car app-actor)) )
 	  (if (not (null? app))
 	    (if (time<? (current-time) timeout)
-	      (loop2 (step-app app 'end))
+	      ;; (loop2 (step-app app '(F.C end)))
+	      (loop2 (step-app app default-continuation))
+	      ;; (loop2 (step-app app 'end))
 	      ;; (loop2 (step-app app '(^($1) $1 . end)))
 	      ;; (loop2 (step-app app '( )))
 	      (app-enqueue! app actor))))
@@ -319,7 +329,8 @@ built-in function: mailboxRemove ^(isEmpty)
   (let ([filepath (string-append sch-load-path filename)])
     (call-with-input-file filepath
       (lambda (port)
-	(let ([previous sch-load-path][next (get-path filepath)])
+	(let ( [previous sch-load-path]
+	       [next (get-path filepath)] )
 	  (if (string? next)
 	    (set! sch-load-path next))
 	  (let loop ( )
@@ -357,22 +368,16 @@ built-in function: mailboxRemove ^(isEmpty)
 	    ((lambda)
 	      (apply-func func (pickup-cont-arg args) defcont))
 	    ((quote)
-	      ;; (cons (func-with-cont (args-to-func args) defcont) func))
-	      ;; 2019/11/5 変更 junk/seqtest.sch のため
 	      (step-app (cons (car rest) args) defcont))
+	    ((PROMISE)
+	      (step-app (cons (eval-promise func) args) defcont))
 	    ((F.C) ; 継続付き関数 (F.C 関数 . 継続)
-	      ;; (println "func=" func ", args=" args)
-	      ;; 2019/5/25 継続はトップレベルまで戻るのでdefcontは付けない。
 	      (step-app (cons (car rest) args)(cdr rest)))
 	    (else ; funcが関数適用
-	      ;; (println "step-app else func=" func " args=" args)
-	      ;; (step-app func (func-with-cont (cons '^ (cons '($0)(cons '$0 args))) defcont)))
 	      (step-app func (func-with-cont (args-to-func args) defcont)))
-	      ;; (substitute-term func '( ) args))
-	      ;; bug (cons (cons '^ (cons '($0) (cons '$0 func))) args))
-	      ;; bug? (substitute-term func cps-env args))
 	    )))
-      ((null? func)
+      ;; ((null? func)
+      ((eq? func 'stop)
 	;; (println "step-app func is null")
 	'( )
 	;; (if (null? defcont) '( )(list defcont))
@@ -384,8 +389,8 @@ built-in function: mailboxRemove ^(isEmpty)
 	  ;; (cons defcont (cons func 'end))
 	  (cons args (cons func defcont))))
 	;; (list args func))
-      ((func-with-cont? app)
-	'( ))
+      ((func-with-cont? app) ; app が継続付き関数ならば
+	'( )) ; なにもしない
       ((procedure? func)
 	(apply-func func (pickup-cont-arg args) defcont))
       (else
@@ -401,7 +406,7 @@ built-in function: mailboxRemove ^(isEmpty)
 
 (define (args-to-func args)
   (if (pair-terms? args)
-    (cons '^ (cons '($0)(cons '$0 args)))
+    (cons '^ (cons '(I$0)(cons 'I$0 args)))
     #; (if (null? (get-tail args))
     (cons '^ (cons '($0 . $1)(cons '$0 (append args '$1))))
     (cons '^ (cons '($0)(cons '$0 args)))
@@ -430,12 +435,6 @@ built-in function: mailboxRemove ^(isEmpty)
       )
     ;; parsが継続仮引数の場合
     (begin
-      ;; (let ([flag (and (pair? args)(equal? (car args) "aho"))])
-      ;; (println "step-abs 2 args=" args)
-      #; (if(pair-terms? args) ; 引数が余った場合
-	(set! args (cons '^ (cons '($1)(cons '$1 args))))
-	)
-      ;; (set! args (func-with-cont args defcont))
       (set! args (func-with-cont (args-to-func args) defcont))
       (if (not (null? pars)) ; 継続仮引数があれば
 	(begin
@@ -447,11 +446,6 @@ built-in function: mailboxRemove ^(isEmpty)
 	      )
 	    )
 	  (set! env (cons-alist pars args env)) ; 継続実引数を割り当てる
-	  #; (set! env
-	    (cons-alist pars
-	      (func-with-cont
-		(cons '^ (cons '($1)(cons '$1 args)))
-		defcont) env)) ; 継続実引数を割り当てる
 	  )
 	)
       ;; (println "step-abs 3 app=" app " env=" env)
@@ -459,48 +453,50 @@ built-in function: mailboxRemove ^(isEmpty)
       ;; { if flag (println "step-abs 4 (car app)=" (car app)) }
       ;; (println "step-abs 4 app=" app " args=" args)
       ;; 2018/6/24
+      (if(func-with-cont? (car app))
+	(set! hoge-count (- hoge-count 1)))
       (cons (func-with-cont (car app) args)(cdr app))
       )
     )
+  )
+
+(define (eval-promise P)
+  (set-car! P 'quote)
+  `(^ return
+      ,P ^ S
+      (lambda(r)
+	(set-car! (quote ,(cdr P)) r)
+	)(^ return2 S return2)^(D)
+      S return)
   )
 
 (define (func-with-cont? func)
   (and (pair? func) (equal? (car func) 'F.C))
   )
 
-;; 2019/7/8
-;; 継続付き関数を返す。
-#; (define (func-with-cont func cont)
-  ;; (cons 'F.C (cons func cont))
-  (if (null? func) cont
-    (if (null? cont) func
-      (cons 'F.C
-	(if (func-with-cont? func)
-	  ;; (cons (car (cdr func)) (func-with-cont (cdr (cdr func)) cont))
-	  (cons func cont)
-	  ;; (cons (car (cdr func))(cdr (cdr func)))
-	  (cons func cont)
-	  ))
-      ))
-  ;; (if (null? cont) func (if (null? func) cont (cons 'F.C (cons func cont))))
-  )
+(define hoge-count 0)
 
 ;; 継続付き関数を返す。
 (define (func-with-cont func cont)
   (if (null? func)
     cont
-    (if (or (null? cont)(func-with-cont? func))
+    (if (or (null? cont)
+	  (if (func-with-cont? func)
+	    (begin
+	      (set! hoge-count (+ hoge-count 1))
+	      ;; (write func)(newline)
+	      #t)
+	      ;; #f)
+	    #f))
       func
       (cons 'F.C (cons func cont))
-      )
-    )
-  )
+      )))
 
 ;; termがpairならば #t、そうでなければ #f を返す。
 (define (pair-terms? term)
   (and (pair? term)
     (case (car term)
-      ((^ lambda quote F.C) #f)
+      ((^ lambda quote F.C PROMISE) #f)
       (else #t)))
   )
 
@@ -523,9 +519,6 @@ built-in function: mailboxRemove ^(isEmpty)
 ;; 関数 func に継続第一の引数リスト cargs を適用する。
 (define (apply-func func cargs defcont)
   [let ([cont (car cargs)][args (cdr cargs)])
-    ;; (println "apply-func func=" func " args=" args)
-    ;; (list (if (null? cont) defcont cont)(apply (eval1 func) args))))
-    ;; (list (func-with-cont cont defcont)(apply (eval1 func) args))
     ;; 2019/7/2 多値返却に対応
     (cons (func-with-cont cont defcont)
       (call-with-values (lambda()(apply (eval1 func) args))
@@ -541,16 +534,7 @@ built-in function: mailboxRemove ^(isEmpty)
       (let ((first (car term))(rest (cdr term)))
 	(case first
 	  ((^)(substitute-abs (car rest)(cdr rest) env))
-	  ((F.C)
-	    ;; (println "substitute-term F.C rest=" rest)
-	    term
-	    #; (func-with-cont (substitute-term (car rest) env)
-	      ;; (cdr rest)
-	      (substitute-term (cdr rest) env)
-	      )
-	    )
-	  ((lambda) term)
-	  ((quote) term)
+	  ((lambda quote F.C PROMISE) term)
 	  (else
 	    ;; (println "substitute-term else")
 	    (cons (substitute-term first env)
@@ -585,12 +569,19 @@ built-in function: mailboxRemove ^(isEmpty)
 ;; ----- built-in functions -----
 
 #|
-end
-式の終端
+null
+空リスト
 |#
+;; (set-global-var 'null '( ))
 (set-global-var 'end '( ))
+#; (set-global-var 'end
+  '(^(out . return)
+     return #t . end
+     )
+  )
 
-(set-global-var 'stop '(end . end))
+;; (set-global-var 'stop '(null . null))
+;; (set-global-var 'stop '(end . end))
 
 #|
 exit code
@@ -598,7 +589,43 @@ exit code
 code: 終了コード
 |#
 (set-global-var 'exit
+  '(^($code)
+     (lambda(code)
+       ;; (display "hoge count=")(display hoge-count)(newline)
+       (exit code)
+       ;; ) $code . null)
+       ) $code . end)
+  )
+;; 2020/6/14 Sun changed
+#; (set-global-var 'exit
   `(^(code)
      (lambda (Code)
        (set! exit-code Code)
        (interpreter-stop!)) code . end))
+
+#|
+delay app ^(P)
+promiseを生成し、変数Pに渡す。
+|#
+(set-global-var 'delay
+  '(^(E)
+     (lambda(e)
+       (cons 'PROMISE (list e))) E))
+
+(set-global-var 'cont_push
+  '(^($cont $func)
+     (lambda(cont func)
+       (func-with-cont func cont)
+       ) $cont $func)
+  )
+
+(set-global-var 'cont_pop
+  '(^($cont . $return)
+     (lambda(cont)
+       (cadr cont)
+       ) $cont ^($first)
+     (lambda(cont)
+       (cddr cont)
+       ) $cont ^($rest)
+     $return $first $rest)
+  )

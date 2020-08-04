@@ -1,2 +1,2 @@
 #!/bin/bash
-$* -e main sample/actor.sch
+$* -e main examples/actor.sch

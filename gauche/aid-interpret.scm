@@ -6,6 +6,7 @@
 (use srfi-19)
 (use srfi-69)
 ;; (use srfi-99)
+;; not implemented (use srfi-115)
 (use srfi-117)
 
 (define-macro (define-type Name . Fields)

@@ -1,6 +1,6 @@
 (include "util.sch")
 
-( defineCPS main ^(args)
+(defineCPS main ^()
   test("2") ^()
   test("3") ^()
   test("4") ^()
@@ -9,10 +9,10 @@
   test("7") ^()
   test("8") ^()
   test("9") ^()
-  end )
+  exit 0)
 
 ( defineCPS test ^(args)
-  get_first args ^(first)
+  list_car args ^(first)
   string_to_number first ^(n)
   find_divisor n 2 ^(d)
   (= n d)
@@ -96,9 +96,11 @@
   ^(thenorelse) thenorelse)
 
 (defineCPS find_divisor ^(n d) d ^(d)
-  ifthenelse (< n (* d d)) n
-  ( ifthenelse (= (remainder n d) 0) d
-    ( find_divisor n (+ d 1) ) ))
+  cond((< n (* d d)) n)
+  (else cond((= (remainder n d) 0) d)
+    (else find_divisor n (+ d 1))
+    )
+  )
 
 #; (defineCPS string_to_number ^(str)
   (lambda (str)(string->number str)) str)
